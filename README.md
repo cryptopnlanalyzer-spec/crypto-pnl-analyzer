@@ -1,7 +1,7 @@
 # 📊 Crypto PnL Analyzer (Derivatives & Futures Only)
 
 ![Crypto PnL Analyzer](thumbnail.png)
-*(※ここにサムネイル画像が表示されます)*
+
 
 > **⚠️ IMPORTANT: Dedicated to Crypto Derivatives / Futures Only (Spot trading NOT supported)**
 > **⚠️ 重要：仮想通貨デリバティブ・先物取引専用ツールです（現物取引のCSVには対応していません）**
@@ -12,8 +12,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![100% Local](https://img.shields.io/badge/Privacy-100%25%20Local-success.svg)](#)
 
-👉 **[Live Demo (English)](#)** | 👉 **[Live Demo (日本語)](#)**
-*(※公開後、ここにVercelなどのURLを入れます)*
+👉 **[Live Demo (English)](https://crypto-pnl-analyzer.vercel.app/)** | 👉 **[Live Demo (日本語)](https://crypto-pnl-analyzer.vercel.app/ja.html)**
 
 ---
 
