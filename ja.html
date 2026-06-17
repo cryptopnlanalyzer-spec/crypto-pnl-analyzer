@@ -1400,7 +1400,7 @@
         }
 
         document.getElementById('shareBtn').addEventListener('click', () => {
-            const text = `📊 取引簡易分析完了\n・Net PnL: ${globalStats.pnl}\n・PF: ${globalStats.pf}\n・勝率: ${globalStats.winRate}\n・期待値: ${globalStats.expectancy}\n\nCSVを投げるだけでローカル自動解析。\n#Crypto #PnLAnalyzer\n👇 無料で自分の成績をチェック\nhttps://your-tool-url.com`;
+            const text = `📊 取引簡易分析完了\n・Net PnL: ${globalStats.pnl}\n・PF: ${globalStats.pf}\n・勝率: ${globalStats.winRate}\n・期待値: ${globalStats.expectancy}\n\nCSVを投げるだけでローカル自動解析。\n#Crypto #PnLAnalyzer\n👇 無料で自分の成績をチェック\nhttps://crypto-pnl-analyzer.vercel.app`;
             window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
         });
     </script>
