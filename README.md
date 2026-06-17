@@ -1,6 +1,6 @@
 # 📊 Crypto PnL Analyzer (Derivatives & Futures Only)
 
-![Crypto PnL Analyzer](thumbnail.jpg)
+![Crypto PnL Analyzer](thumbnail.png)
 *(※ここにサムネイル画像が表示されます)*
 
 > **⚠️ IMPORTANT: Dedicated to Crypto Derivatives / Futures Only (Spot trading NOT supported)**
