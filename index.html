@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto PnL Analyzer</title>
+    <meta name="twitter:card" content="summary_large_image">
+    <meta property="og:title" content="Crypto PnL Analyzer">
+    <meta property="og:description" content="A fully local, free analysis tool that automatically calculates win rate, expectancy, PnL distribution, and optimal risk sizing just by dropping your CSV.">
+    <meta property="og:image" content="https://your-tool-url.com/thumbnail.jpg">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        .dragover { background-color: #1e3a8a !important; border-color: #60a5fa !important; }
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .grid-cols-25 { grid-template-columns: repeat(25, minmax(0, 1fr)); }
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px;}
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1em; padding-right: 2rem !important; }
+        .toggle-checkbox:checked { right: 0; border-color: #10b981; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 relative">
+
+    <div class="absolute top-4 right-4 z-50">
+        <a href="ja.html" class="text-xs font-bold text-gray-400 hover:text-white border border-gray-600 rounded px-3 py-1 transition-colors bg-gray-800">🌐 日本語</a>
+    </div>
+
+    <div class="max-w-4xl mx-auto space-y-6 pt-4">
+        
+        <header class="text-center">
+            <h1 class="text-2xl md:text-3xl font-bold text-blue-400">📊 Crypto PnL Analyzer</h1>
+            <p class="text-gray-400 text-xs mt-1">Dedicated to crypto derivatives. No server uploads; drop your CSV to instantly analyze your win rate, expectancy, and risk management—all in your browser.</p>
+        </header>
+
+        <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 flex flex-col gap-4 text-xs shadow-lg">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                
+                <div class="flex items-center space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-700 w-full md:w-auto">
+                    <button id="period-all" class="period-btn flex-1 md:flex-none px-3 py-1.5 rounded font-bold transition-colors bg-blue-600 text-white">All Time</button>
+                    <button id="period-year" class="period-btn flex-1 md:flex-none px-3 py-1.5 rounded font-bold transition-colors text-gray-400 hover:text-white">This Year</button>
+                    <button id="period-month" class="period-btn flex-1 md:flex-none px-3 py-1.5 rounded font-bold transition-colors text-gray-400 hover:text-white">This Month</button>
+                    <button id="period-30d" class="period-btn flex-1 md:flex-none px-3 py-1.5 rounded font-bold transition-colors text-gray-400 hover:text-white">Last 30 Days</button>
+                </div>
+
+                <div class="flex items-center space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-700 w-full md:w-auto">
+                    <button id="filter-all" class="filter-btn flex-1 md:flex-none px-3 py-1.5 rounded font-bold transition-colors bg-blue-600 text-white">All L/S</button>
+                    <button id="filter-long" class="filter-btn flex-1 md:flex-none px-3 py-1.5 rounded font-bold transition-colors text-gray-400 hover:text-white">Long Only</button>
+                    <button id="filter-short" class="filter-btn flex-1 md:flex-none px-3 py-1.5 rounded font-bold transition-colors text-gray-400 hover:text-white">Short Only</button>
+                </div>
+            </div>
+
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 border-t border-gray-700 pt-3">
+                <div class="flex items-center gap-2 w-full md:w-auto">
+                    <span class="text-gray-400 font-bold">Target Asset:</span>
+                    <select id="coin-filter-select" class="bg-gray-900 text-white font-bold px-3 py-1.5 rounded border border-gray-700 focus:outline-none focus:border-blue-500 cursor-pointer shadow-inner">
+                        <option value="all">All</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-3 text-gray-400 w-full md:w-auto justify-end">
+                    <span class="font-bold text-[11px] md:text-xs text-blue-300" id="mode-text" title="Click to toggle between Net PnL and Gross PnL">Mode: Net PnL (w/ costs)</span>
+                    <div class="relative inline-block w-10 align-middle select-none transition duration-200">
+                        <input type="checkbox" id="displayToggle" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 top-0 bottom-0 m-auto"/>
+                        <label for="displayToggle" class="toggle-label block overflow-hidden h-5 rounded-full bg-blue-600 cursor-pointer"></label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="border-2 border-dashed border-gray-500 bg-gray-800/80 rounded-xl p-8 md:p-10 text-center transition-all duration-200 cursor-pointer hover:bg-gray-700 hover:border-blue-400 shadow-lg mt-2 relative overflow-hidden" id="dropZone">
+            <div class="absolute inset-0 z-10" id="dropZoneClickArea"></div>
+            <p class="text-base md:text-lg text-gray-300 font-bold relative z-0" id="dropText">
+                📁 Drop Crypto Trade History CSV here / Tap to select
+                <br><span class="text-xs text-blue-400 font-normal mt-2 block">* Supports combining multiple files simultaneously (Trade + Funding History)</span>
+            </p>
+            <input type="file" id="fileInput" class="hidden" accept=".csv" multiple>
+        </div>
+        
+        <p class="text-[11px] text-gray-500 text-center max-w-lg mx-auto leading-relaxed px-2">
+            Optimized for Hyperliquid. For other exchanges, the tool attempts to automatically parse standard derivative CSVs. (*Some formats may not be supported.)
+        </p>
+
+        <div id="dashboard" class="hidden space-y-6">
+            
+            <div class="border-b border-gray-700 flex space-x-1 text-[11px] md:text-xs font-bold overflow-x-auto whitespace-nowrap pb-px">
+                <button id="tab-btn-main" class="px-3 md:px-4 py-2 border-b-2 border-blue-500 text-blue-400 bg-gray-800/50 rounded-t-lg">📊 Main</button>
+                <button id="tab-btn-calendar" class="px-3 md:px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-white transition-colors">📅 Calendar</button>
+                <button id="tab-btn-risk" class="px-3 md:px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-white transition-colors">🧠 Risk Mgmt</button>
+                <button id="tab-btn-assets" class="px-3 md:px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-white transition-colors">🪙 Assets</button>
+            </div>
+
+            <div id="tab-content-main" class="space-y-6">
+                
+                <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-blue-500/30 text-center space-y-1 relative transition-colors duration-300" id="hero-panel">
+                    <p class="text-blue-400 text-sm font-bold tracking-wider" id="pnl-label">✨ Total Net PnL</p>
+                    <p id="val-netpnl" class="text-4xl md:text-6xl font-extrabold tracking-tight transition-all duration-300">-</p>
+                    <p id="detected-currency-text" class="text-[10px] text-gray-500 pt-1"><span class="text-gray-600">* Some values are rounded for readability</span></p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div class="bg-gray-800 p-4 rounded-lg shadow border border-gray-700 space-y-2">
+                        <p class="text-gray-400 font-bold border-b border-gray-700 pb-1 mb-2">📝 Statistics</p>
+                        <div class="flex justify-between items-center text-gray-300"><span>Trades:</span> <span id="val-trades" class="text-white font-bold text-sm">-</span></div>
+                        <div class="flex justify-between items-center text-gray-300"><span>Win Rate:</span> <span id="val-winrate" class="text-white font-bold text-sm">-</span></div>
+                        <div class="flex justify-between items-center text-gray-300"><span>Profit Factor:</span> <span id="val-pf" class="text-white font-bold text-sm">-</span></div>
+                        <div class="flex justify-between items-center text-gray-300"><span>Expectancy / Trade:</span> <span id="val-expectancy" class="font-bold text-sm">-</span></div>
+                    </div>
+                    
+                    <div class="bg-gray-800 p-4 rounded-lg shadow border border-gray-700 space-y-2">
+                        <p class="text-gray-400 font-bold border-b border-gray-700 pb-1 mb-2">📊 PnL & Volume</p>
+                        <div class="flex justify-between items-center text-gray-300"><span>Avg Win:</span> <span id="val-avg-win" class="text-green-400 font-bold">-</span></div>
+                        <div class="flex justify-between items-center text-gray-300"><span>Avg Loss:</span> <span id="val-avg-loss" class="text-red-400 font-bold">-</span></div>
+                        <div class="flex justify-between items-center text-gray-300"><span>Risk/Reward:</span> <span id="val-rr" class="text-white font-bold">-</span></div>
+                        <div class="flex justify-between items-center text-gray-300"><span>Cumulative Volume:</span> <span id="val-volume" class="text-blue-300 font-bold">-</span></div>
+                    </div>
+
+                    <div class="bg-gray-800 p-4 rounded-lg shadow border border-gray-700 space-y-2 flex flex-col justify-center">
+                        <p class="text-purple-400 font-bold border-b border-gray-700 pb-1 mb-2">⛽ Fees & Funding</p>
+                        <div class="flex justify-between items-center text-gray-300 mb-2">
+                            <span>Total Paid Fees:</span>
+                            <span id="val-fee-detail" class="font-bold text-red-400 text-sm">-</span>
+                        </div>
+                        <div class="flex justify-between items-center text-gray-300">
+                            <span>Net Funding (FR) PnL:</span>
+                            <span id="val-fr-detail" class="font-bold text-sm">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div class="bg-gray-800 p-4 rounded-lg shadow border border-gray-700 md:col-span-1 flex flex-col">
+                        <h3 class="font-bold text-blue-400 mb-2">⚔️ L/S Comparison</h3>
+                        <div class="flex-grow overflow-y-auto">
+                            <table class="w-full text-left">
+                                <thead><tr class="text-gray-500 border-b border-gray-700"><th class="pb-2">Side</th><th class="text-right pb-2">Win Rate</th><th class="text-right pb-2">Total PnL</th></tr></thead>
+                                <tbody id="ls-compare-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800 p-4 rounded-lg shadow border border-gray-700 md:col-span-2">
+                        <p class="text-blue-400 font-bold mb-2">💡 Auto Insights (Key PnL Drivers)</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-green-900/10 p-3 rounded border border-green-900/30">
+                                <span class="text-green-400 font-bold block mb-1">📈 Top Winning Factor</span>
+                                <ul class="text-gray-300 space-y-1 list-disc list-inside ml-4" id="insight-max-win"></ul>
+                            </div>
+                            <div class="bg-red-900/10 p-3 rounded border border-red-900/30">
+                                <span class="text-red-400 font-bold block mb-1">📉 Top Losing Factor</span>
+                                <ul class="text-gray-300 space-y-1 list-disc list-inside ml-4" id="insight-max-loss"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-800 p-4 rounded-lg shadow border border-gray-700 h-64 relative">
+                    <canvas id="pnlChart"></canvas>
+                </div>
+            </div>
+
+            <div id="tab-content-calendar" class="space-y-6 hidden">
+                <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 space-y-3">
+                    <h3 class="text-xs font-bold text-blue-400 tracking-wider">📅 Daily PnL Calendar</h3>
+                    <p class="text-[10px] text-gray-400 leading-relaxed">
+                        Displays total daily PnL reflecting the Gross/Net toggle on the main tab.<br>
+                        * Shows only the last 2 years for optimal performance.<br>
+                        <span class="text-blue-300 font-bold">💡 Tap (click) a traded date to view detailed stats for that day.</span><br>
+                        <span class="text-gray-500">* PnL values on the calendar are rounded for visibility.</span>
+                    </p>
+                    <div id="calendar-container" class="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2"></div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 space-y-2">
+                        <h3 class="text-xs font-bold text-blue-400">📅 PnL by Day of Week</h3>
+                        <div class="overflow-x-auto text-[11px]">
+                            <table class="w-full text-left">
+                                <thead><tr class="text-gray-500 border-b border-gray-700"><th class="pb-1">Day</th><th class="text-right pb-1">Win Rate</th><th class="text-right pb-1">PF</th><th class="text-right pb-1">Expectancy</th></tr></thead>
+                                <tbody id="dow-ranking-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 space-y-2">
+                        <h3 class="text-xs font-bold text-blue-400">⏰ Top & Worst 3 Hours</h3>
+                        <div class="overflow-x-auto text-[11px]">
+                            <table class="w-full text-left">
+                                <thead><tr class="text-gray-500 border-b border-gray-700"><th class="pb-1">Hour</th><th class="text-right pb-1">Total PnL</th><th class="pb-1 pl-4">Hour</th><th class="text-right pb-1">Total PnL</th></tr></thead>
+                                <tbody id="hourly-ranking-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 space-y-2">
+                    <h3 class="text-xs font-bold text-blue-400 tracking-wider">🗺️ Day × Hour Heatmap</h3>
+                    <p class="text-[10px] text-gray-400 mb-2">
+                        <span class="text-blue-300 font-bold">💡 Tap (click) a cell to view detailed stats for that specific hour.</span>
+                    </p>
+                    <div class="overflow-x-auto custom-scrollbar pb-2">
+                        <div class="min-w-[640px] text-[10px] font-mono text-center" id="heatmap-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-content-risk" class="space-y-6 hidden">
+                <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 shadow-lg space-y-4">
+                    <div class="space-y-1 text-center md:text-left">
+                        <h3 class="text-sm font-bold text-blue-400">🧠 Position Sizing Simulator (Kelly Criterion)</h3>
+                        <p class="text-gray-400 text-[11px] leading-relaxed">
+                            A mathematical model indicating the suggested risk tolerance (acceptable loss) per single trade based on your historical statistics.
+                        </p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="bg-gray-900 p-3 rounded-lg border border-gray-800 flex flex-col justify-center items-center">
+                            <span class="text-[10px] text-gray-500 font-bold">Maximum Limit (Full Kelly)</span>
+                            <span id="val-kelly-full" class="text-lg font-bold text-white mt-1">-</span>
+                            <span class="text-[9px] text-red-400 mt-1">* Highly volatile, requires caution</span>
+                        </div>
+                        <div class="bg-blue-900/20 p-3 rounded-lg border border-blue-500/30 flex flex-col justify-center items-center relative overflow-hidden">
+                            <span class="text-[10px] text-blue-300 font-bold">Practical Benchmark</span>
+                            <span id="val-kelly-half" class="text-2xl font-black text-green-400 mt-1">-</span>
+                            <span class="text-[9px] text-gray-400 mt-1">Standard (Half Kelly)</span>
+                        </div>
+                        <div class="bg-gray-900 p-3 rounded-lg border border-gray-800 flex flex-col justify-center items-center">
+                            <span class="text-[10px] text-gray-500 font-bold">Conservative Benchmark</span>
+                            <span id="val-kelly-quarter" class="text-lg font-bold text-white mt-1">-</span>
+                            <span class="text-[9px] text-gray-400 mt-1">Focuses on minimizing drawdown</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-900 p-4 rounded-lg border border-gray-700 mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                            <span class="text-xs text-gray-300 font-bold">💰 Enter Current Account Balance:</span>
+                            <div class="relative">
+                                <span class="absolute left-2 top-1.5 text-gray-500 font-bold" id="currency-symbol-input">$</span>
+                                <input type="number" id="user-balance" class="bg-gray-800 border border-gray-600 text-white pl-6 pr-2 py-1.5 rounded text-right w-32 text-sm font-mono focus:outline-none focus:border-blue-500" placeholder="10000">
+                            </div>
+                        </div>
+                        <div class="text-center sm:text-right w-full sm:w-auto">
+                            <span class="text-[10px] text-gray-400 block mb-1">Suggested Acceptable Loss for Next Trade</span>
+                            <span id="kelly-fiat-amount" class="font-bold text-white text-xl">-</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-900/10 p-3 rounded text-[10px] text-gray-400 leading-relaxed border border-blue-900/30">
+                        💡 <strong>[How to Interpret These Values]</strong><br>
+                        The calculated amount represents the <strong>"suggested risk tolerance (maximum acceptable loss) per single trade"</strong> based on historical data, and does <strong>NOT</strong> represent the total position size. This is purely a mathematical model (the Kelly Criterion) intended to help manage capital volatility in systematic trading, and it does not guarantee future profits. Please use it strictly as a reference and execute trades at your own discretion, taking into account the risk of sudden market changes.
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 h-64 relative flex flex-col">
+                        <h3 class="text-[11px] font-bold text-blue-400 mb-1">📊 PnL Distribution Histogram</h3>
+                        <p class="text-[9px] text-gray-500 mb-2">Visualizes your risk/reward profile (e.g., cutting losses vs letting winners run).</p>
+                        <div class="flex-grow relative"><canvas id="pnlHistogramChart"></canvas></div>
+                    </div>
+
+                    <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 space-y-2 text-xs">
+                        <h3 class="text-[11px] font-bold text-blue-400">📉 Post-Losing Streak Analysis</h3>
+                        <p class="text-[9px] text-gray-500 mb-2">Performance of "the trade immediately following an N-trade losing streak". Helps identify revenge trading.</p>
+                        <div class="overflow-x-auto text-[11px]">
+                            <table class="w-full text-left">
+                                <thead><tr class="text-gray-500 border-b border-gray-700"><th class="pb-1">Condition</th><th class="text-right pb-1">Count</th><th class="text-right pb-1">Win Rate</th><th class="text-right pb-1">PF</th><th class="text-right pb-1">Avg PnL</th></tr></thead>
+                                <tbody id="post-loss-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 flex justify-between items-center">
+                        <span class="text-gray-400 font-bold">Max Drawdown</span>
+                        <span id="val-risk-maxdd" class="text-red-500 font-mono font-bold text-sm">-</span>
+                    </div>
+                    <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 flex justify-between items-center">
+                        <span class="text-gray-400 font-bold">Max Win / Loss Streak</span>
+                        <div class="font-bold text-sm">
+                            <span id="val-streak-win" class="text-green-400">-</span> / <span id="val-risk-lossstreak" class="text-red-400">-</span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 flex justify-between items-center">
+                        <span class="text-gray-400 font-bold">Worst Trade</span>
+                        <span id="val-risk-worst" class="text-red-400 font-mono font-bold text-sm">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-content-assets" class="space-y-6 hidden">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 h-72 relative flex flex-col md:col-span-1">
+                        <h3 class="text-[10px] text-gray-400 font-bold mb-2 text-center tracking-wider">Trade Count Share (Top 10)</h3>
+                        <div class="relative w-full h-full flex-grow pb-2 min-h-0"><canvas id="assetDoughnutChart"></canvas></div>
+                    </div>
+                    <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 h-72 relative flex flex-col md:col-span-2">
+                        <h3 class="text-[10px] text-gray-400 font-bold mb-2 text-center tracking-wider">PnL by Asset (Top 10)</h3>
+                        <div class="relative w-full h-full flex-grow min-h-0"><canvas id="assetBarChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 text-xs flex flex-col">
+                    <h3 class="text-xs font-bold text-blue-400">🪙 Detailed Asset Analysis (Click to Filter)</h3>
+                    <p class="text-[10px] text-gray-400 mb-2">Click on an asset name to filter the entire dashboard by that asset.</p>
+                    <div class="overflow-x-auto custom-scrollbar pb-2">
+                        <table class="w-full text-left whitespace-nowrap">
+                            <thead>
+                                <tr class="text-gray-400 border-b border-gray-700 bg-gray-800 text-[10px]">
+                                    <th class="pb-2 px-2 sticky left-0 bg-gray-800 z-10 font-bold text-white">Asset</th>
+                                    <th class="text-right pb-2 px-2">Trades</th>
+                                    <th class="text-right pb-2 px-2">Win Rate</th>
+                                    <th class="text-right pb-2 px-2">Avg PnL</th>
+                                    <th class="text-right pb-2 px-2">Max Win</th>
+                                    <th class="text-right pb-2 px-2">Max Loss</th>
+                                    <th class="text-right pb-2 px-2">PF</th>
+                                    <th class="text-right pb-2 px-2 border-l border-gray-700">Long (Trades)</th>
+                                    <th class="text-right pb-2 px-2">Long (WR)</th>
+                                    <th class="text-right pb-2 px-2">Long (PnL)</th>
+                                    <th class="text-right pb-2 px-2 border-l border-gray-700">Short (Trades)</th>
+                                    <th class="text-right pb-2 px-2">Short (WR)</th>
+                                    <th class="text-right pb-2 px-2">Short (PnL)</th>
+                                    <th class="text-right pb-2 px-2 border-l border-gray-700 font-bold text-white">Total PnL</th>
+                                </tr>
+                            </thead>
+                            <tbody id="coin-ranking-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-800 pt-6 mt-8">
+                <div class="bg-gray-900 p-4 rounded border border-gray-700 text-center">
+                    <p class="text-gray-300 font-bold text-xs mb-2">⚠️ Disclaimer</p>
+                    <p class="text-[10px] text-gray-500 leading-relaxed max-w-3xl mx-auto">
+                        This tool is a simplified application intended solely for personal trade review and self-analysis, and we do not guarantee the accuracy of its calculated results.<br>
+                        <strong class="text-red-400">Under no circumstances should this tool be used for official tax calculations or tax returns.</strong><br>
+                        We assume no responsibility or liability for any damages or losses incurred as a result of using this tool. Please use it entirely at your own risk.
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex justify-center pb-4 pt-4">
+                <button id="shareBtn" class="bg-black hover:bg-gray-800 text-white font-bold py-2 px-6 rounded-full border border-gray-600 transition-colors text-sm whitespace-nowrap shadow-lg flex items-center gap-2">
+                    𝕏 Share Results
+                </button>
+            </div>
+        </div>
+
+<footer class="text-center pt-6 border-t border-gray-800 pb-4">
+            <p class="mb-3">
+                <a href="https://forms.gle/pi8cNuu31H6EsHV28" target="_blank" class="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 underline underline-offset-4 font-bold transition-colors text-xs break-all px-4">
+                    📮 Unsupported Format Report Box
+                </a>
+            </p>
+            
+            <p class="text-[10px] text-gray-500 leading-relaxed max-w-2xl mx-auto px-4">
+                * For privacy protection, <strong class="text-red-400 font-bold">strictly DO NOT submit actual trade history (CSV data) or personal information</strong>. Only provide the "Exchange Name" and "Header Row (1st line)".<br>
+                * This tool utilizes AI technology for algorithm development. Submitted information will solely be used for AI-driven summarization and classification to improve the tool.<br>
+                (We do not guarantee individual replies or support for requested formats)
+            </p>
+
+            <div class="mt-8 px-4 max-w-5xl mx-auto">
+                <p class="text-[10px] text-gray-500 text-center max-w-2xl mx-auto leading-relaxed">
+                    💡 If you use Hyperliquid, consider using the referral code <a href="https://app.hyperliquid.xyz/join/PNLANALYZER" target="_blank" class="text-blue-400 underline hover:text-blue-300 transition-colors font-mono">PNLANALYZER</a> to receive a 4% fee discount on your first $25M in volume.
+                </p>
+
+                <div class="mt-3 text-center md:text-right">
+                    <a href="https://github.com/あなたの新アカウント名/crypto-pnl-analyzer" target="_blank" class="inline-flex items-center gap-1.5 text-[10px] text-gray-400 hover:text-white font-mono opacity-50 hover:opacity-100 transition-all">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+                        View Source on GitHub
+                    </a>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <div id="dailyModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity">
+        <div class="bg-gray-800 rounded-xl border border-gray-600 shadow-2xl p-6 w-full max-w-sm relative">
+            <button onclick="document.getElementById('dailyModal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+            <h3 id="modalDate" class="text-lg font-bold text-blue-400 mb-4 border-b border-gray-700 pb-2"></h3>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400 text-sm">Trades:</span>
+                    <span id="modalTrades" class="font-bold text-white text-lg">-</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400 text-sm">Total PnL:</span>
+                    <span id="modalPnL" class="font-bold text-2xl tracking-tight">-</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400 text-sm">Win Rate:</span>
+                    <span id="modalWR" class="font-bold text-white text-lg">-</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400 text-sm">Profit Factor (PF):</span>
+                    <span id="modalPF" class="font-bold text-white text-lg">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const dropZoneClickArea = document.getElementById('dropZoneClickArea');
+        const fileInput = document.getElementById('fileInput');
+        const dropText = document.getElementById('dropText');
+        const dashboard = document.getElementById('dashboard');
+        const displayToggle = document.getElementById('displayToggle');
+        const userBalanceInput = document.getElementById('user-balance');
+        const currencySymbolInput = document.getElementById('currency-symbol-input');
+        const coinSelect = document.getElementById('coin-filter-select');
+        const modeText = document.getElementById('mode-text');
+        const pnlLabel = document.getElementById('pnl-label');
+        const heroPanel = document.getElementById('hero-panel');
+        
+        let currentKellyHalf = 0;
+        let chartInstance = null;
+        let assetDoughnutChart = null;
+        let assetBarChart = null;
+        let pnlHistogramChart = null;
+        let globalCurrency = { type: 'prefix', symbol: '$' }; 
+        let globalStats = {}; 
+
+        let globalAllRows = [];
+        let currentFilters = { period: 'all', direction: 'all', coin: 'all' };
+        let currentAggregatedData = null;
+
+        const fastChartOptions = { animation: false, responsive: true, maintainAspectRatio: false };
+
+        const tabs = ['main', 'calendar', 'risk', 'assets'];
+        tabs.forEach(tab => {
+            document.getElementById(`tab-btn-${tab}`).addEventListener('click', () => {
+                tabs.forEach(t => {
+                    document.getElementById(`tab-content-${t}`).classList.add('hidden');
+                    document.getElementById(`tab-btn-${t}`).className = "px-3 md:px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-white transition-colors";
+                });
+                document.getElementById(`tab-content-${tab}`).classList.remove('hidden');
+                document.getElementById(`tab-btn-${tab}`).className = "px-3 md:px-4 py-2 border-b-2 border-blue-500 text-blue-400 bg-gray-800/50 rounded-t-lg";
+                
+                setTimeout(() => {
+                    try { if (chartInstance) chartInstance.resize(); } catch(e){}
+                    try { if (pnlHistogramChart) pnlHistogramChart.resize(); } catch(e){}
+                    try { if (assetDoughnutChart) assetDoughnutChart.resize(); } catch(e){}
+                    try { if (assetBarChart) assetBarChart.resize(); } catch(e){}
+                }, 10);
+            });
+        });
+
+        ['all', 'year', 'month', '30d'].forEach(p => {
+            document.getElementById(`period-${p}`).addEventListener('click', () => {
+                currentFilters.period = p;
+                updateBtnGroup('period', `period-${p}`);
+                applyFiltersAndRender();
+            });
+        });
+
+        ['all', 'long', 'short'].forEach(d => {
+            document.getElementById(`filter-${d}`).addEventListener('click', () => {
+                currentFilters.direction = d;
+                updateBtnGroup('filter', `filter-${d}`);
+                applyFiltersAndRender();
+            });
+        });
+
+        coinSelect.addEventListener('change', (e) => {
+            currentFilters.coin = e.target.value;
+            applyFiltersAndRender();
+        });
+
+        displayToggle.addEventListener('change', () => {
+            const isGrossMode = displayToggle.checked;
+            if (isGrossMode) {
+                modeText.innerText = "Mode: Gross PnL (w/o costs)";
+                modeText.className = "font-bold text-[11px] md:text-xs text-yellow-500";
+                pnlLabel.innerText = "✨ Total Gross PnL";
+                pnlLabel.className = "text-yellow-500 text-sm font-bold tracking-wider";
+                heroPanel.className = "bg-gray-800 p-6 rounded-xl shadow-lg border border-yellow-500/30 text-center space-y-1 relative transition-colors duration-300";
+            } else {
+                modeText.innerText = "Mode: Net PnL (w/ costs)";
+                modeText.className = "font-bold text-[11px] md:text-xs text-blue-300";
+                pnlLabel.innerText = "✨ Total Net PnL";
+                pnlLabel.className = "text-blue-400 text-sm font-bold tracking-wider";
+                heroPanel.className = "bg-gray-800 p-6 rounded-xl shadow-lg border border-blue-500/30 text-center space-y-1 relative transition-colors duration-300";
+            }
+            applyFiltersAndRender();
+        });
+
+        function updateBtnGroup(groupClass, activeId) {
+            document.querySelectorAll(`.${groupClass}-btn`).forEach(b => {
+                if (b.id === activeId) b.className = `${groupClass}-btn flex-1 md:flex-none px-3 py-1.5 rounded font-bold transition-colors bg-blue-600 text-white`;
+                else b.className = `${groupClass}-btn flex-1 md:flex-none px-3 py-1.5 rounded font-bold transition-colors text-gray-400 hover:text-white`;
+            });
+        }
+
+        window.setCoinFilter = function(coin) {
+            currentFilters.coin = coin;
+            coinSelect.value = coin;
+            document.getElementById('tab-btn-main').click();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            applyFiltersAndRender();
+        };
+
+        window.showDailyModal = function(type, key, titleText) {
+            if (!currentAggregatedData) return;
+            let stats = null;
+            if (type === 'calendar') stats = currentAggregatedData.dailyStats[key];
+            else if (type === 'heatmap') {
+                const parts = key.split('-');
+                stats = currentAggregatedData.heatmapStats[parseInt(parts[0])][parseInt(parts[1])];
+            }
+            if (!stats) return;
+
+            const modal = document.getElementById('dailyModal');
+            document.getElementById('modalDate').innerText = titleText;
+            document.getElementById('modalTrades').innerText = stats.trades + (stats.trades === 1 ? ' trade' : ' trades');
+            document.getElementById('modalPnL').innerText = formatCurrency(stats.pnl, globalCurrency);
+            document.getElementById('modalPnL').className = `font-bold text-2xl tracking-tight ${stats.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`;
+            
+            const wr = stats.trades > 0 ? ((stats.winTrades / stats.trades) * 100).toFixed(1) + '%' : '-';
+            document.getElementById('modalWR').innerText = wr;
+            
+            let pf = '-';
+            if (stats.trades > 0) {
+                if (stats.grossLoss === 0) pf = stats.grossProfit > 0 ? "∞" : "0.00";
+                else pf = Math.abs(stats.grossProfit / stats.grossLoss).toFixed(2);
+            }
+            document.getElementById('modalPF').innerText = pf;
+            modal.classList.remove('hidden');
+        };
+
+        function populateCoinSelect() {
+            const uniqueCoins = [...new Set(globalAllRows.map(r => r.coin))].filter(c => c !== "UNKNOWN" && c !== "FUNDING_FEE").sort();
+            const currentVal = coinSelect.value;
+            coinSelect.innerHTML = '<option value="all">All</option>';
+            uniqueCoins.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                coinSelect.appendChild(opt);
+            });
+            if (uniqueCoins.includes(currentVal)) coinSelect.value = currentVal;
+            else { coinSelect.value = 'all'; currentFilters.coin = 'all'; }
+        }
+
+        userBalanceInput.addEventListener('input', () => {
+            const bal = parseFloat(userBalanceInput.value) || 0;
+            const amtEl = document.getElementById('kelly-fiat-amount');
+            if (bal > 0 && currentKellyHalf > 0) amtEl.innerText = formatAbsoluteCurrency(bal * currentKellyHalf, globalCurrency);
+            else amtEl.innerText = "-";
+        });
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => { dropZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }); });
+        dropZone.addEventListener('drop', (e) => { if (e.dataTransfer.files.length > 0) prepareFiles(e.dataTransfer.files); }, false);
+        dropZoneClickArea.addEventListener('click', (e) => { e.preventDefault(); fileInput.click(); });
+        fileInput.addEventListener('change', (e) => { if (e.target.files.length > 0) prepareFiles(e.target.files); });
+
+        function formatCurrency(amount, curr) {
+            const absAmount = Math.abs(amount);
+            let numStr = "";
+            if (curr.symbol === "¥") numStr = Math.round(absAmount).toLocaleString('en-US');
+            else {
+                if (absAmount > 0 && absAmount < 1) numStr = absAmount.toFixed(4);
+                else numStr = absAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return curr.type === 'prefix' ? `${amount < 0 ? "-" : (amount > 0 ? "+" : "")}${curr.symbol}${numStr}` : `${amount < 0 ? "-" : (amount > 0 ? "+" : "")}${numStr} ${curr.symbol}`;
+        }
+
+        function formatAbsoluteCurrency(amount, curr) {
+            const absAmount = Math.abs(amount);
+            let numStr = "";
+            if (curr.symbol === "¥") numStr = Math.round(absAmount).toLocaleString('en-US');
+            else {
+                if (absAmount > 0 && absAmount < 1) numStr = absAmount.toFixed(4);
+                else numStr = absAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return curr.type === 'prefix' ? `${curr.symbol}${numStr}` : `${numStr} ${curr.symbol}`;
+        }
+
+        function formatCompactCurrency(amount, curr, showPlus = true) {
+            if (amount === 0) return "±0";
+            const absAmount = Math.abs(amount);
+            let numStr = "";
+            if (curr.symbol === "¥") {
+                if (absAmount >= 100000000) numStr = (absAmount / 100000000).toFixed(2) + "億";
+                else if (absAmount >= 10000) numStr = (absAmount / 10000).toFixed(1) + "万";
+                else if (absAmount > 0 && absAmount < 10) numStr = absAmount.toFixed(2);
+                else numStr = Math.round(absAmount).toLocaleString('en-US');
+            } else {
+                if (absAmount >= 1000000) numStr = (absAmount / 1000000).toFixed(2) + "M";
+                else if (absAmount >= 1000) numStr = (absAmount / 1000).toFixed(1) + "k";
+                else {
+                    const dec = absAmount < 1 ? 4 : 2;
+                    numStr = absAmount.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+                }
+            }
+            if (numStr === "0" || numStr === "0.00" || numStr === "0.0000") return "±0";
+            const prefix = amount < 0 ? "-" : (amount > 0 && showPlus ? "+" : "");
+            return curr.type === 'prefix' ? `${prefix}${curr.symbol}${numStr}` : `${prefix}${numStr} ${curr.symbol}`;
+        }
+
+        function formatCalendarCurrency(amount, curr) {
+            if (amount === 0) return "±0";
+            const rounded = Math.round(amount);
+            if (rounded === 0) return "±0";
+            let numStr = "";
+            const absAmount = Math.abs(rounded);
+            if (curr.symbol === "¥") {
+                if (absAmount >= 100000000) numStr = (absAmount / 100000000).toFixed(1).replace('.0', '') + "億";
+                else if (absAmount >= 10000) numStr = (absAmount / 10000).toFixed(1).replace('.0', '') + "万";
+                else numStr = absAmount.toLocaleString('en-US');
+            } else {
+                if (absAmount >= 1000000) numStr = (absAmount / 1000000).toFixed(1).replace('.0', '') + "M";
+                else if (absAmount >= 1000) numStr = (absAmount / 1000).toFixed(1).replace('.0', '') + "k";
+                else numStr = absAmount.toLocaleString('en-US');
+            }
+            const prefix = amount < 0 ? "-" : "+";
+            return curr.type === 'prefix' ? `${prefix}${curr.symbol}${numStr}` : `${prefix}${numStr} ${curr.symbol}`;
+        }
+
+        function parseToLocalDateTime(timeStr, isJstFallback = false) {
+            if (!timeStr) return new Date();
+            if (/^\d+$/.test(timeStr.toString().trim())) return new Date(parseInt(timeStr));
+            const cleanStr = timeStr.toString().trim();
+            
+            if (cleanStr.includes('Z') || cleanStr.match(/[+-]\d{2}:?\d{2}$/)) {
+                return new Date(cleanStr);
+            }
+            
+            if (cleanStr.includes('-') || cleanStr.includes('/')) {
+                const isoNormalized = cleanStr.replace(/\s+/, 'T').replace(/\//g, '-');
+                const tzSuffix = isJstFallback ? '+09:00' : 'Z';
+                const d = new Date(isoNormalized + tzSuffix); 
+                if (!isNaN(d.getTime())) return d;
+            }
+            
+            return new Date(cleanStr);
+        }
+
+        function prepareFiles(fileList) {
+            const files = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.csv'));
+            if (files.length === 0) { dropText.innerHTML = "❌ No CSV files found"; return; }
+            
+            dropText.innerHTML = "⏳ Parsing & combining...";
+            
+            setTimeout(async () => {
+                globalAllRows = [];
+                let currencyDetected = false;
+                let autoNetPossible = false; 
+
+                for (let i = 0; i < files.length; i++) {
+                    await extractRowsFromFile(files[i], globalAllRows, (cur, isNetPossible) => { 
+                        if (!currencyDetected) {
+                            globalCurrency = cur; currencyDetected = true; currencySymbolInput.innerText = cur.symbol; 
+                            if (isNetPossible) autoNetPossible = true;
+                        }
+                    });
+                }
+
+                if (globalAllRows.length === 0) { dropText.innerHTML = "❌ No valid trade data found"; return; }
+
+                globalAllRows.sort((a, b) => a.t - b.t);
+                
+                let latestBalance = null;
+                for (let i = globalAllRows.length - 1; i >= 0; i--) {
+                    if (globalAllRows[i].balance !== null && globalAllRows[i].balance !== undefined) {
+                        latestBalance = globalAllRows[i].balance;
+                        break;
+                    }
+                }
+
+                let positions = {};
+                let lastCoin = "UNKNOWN";
+                let currentDirection = {}; 
+
+                globalAllRows.forEach(r => {
+                    if (!r.isFr && r.coin && r.coin !== "UNKNOWN" && r.coin !== "FUNDING_FEE") {
+                        lastCoin = r.coin;
+                        if (r.isCl === false || r.isManualOpen) {
+                            currentDirection[r.coin] = r.isPosLong ? 'long' : 'short';
+                        }
+                    }
+                    
+                    if (r.isFr) {
+                        if (r.coin === "FUNDING_FEE" || /^(USDT|USDC|USD|JPY|EUR)$/i.test(r.coin) || r.coin === "UNKNOWN") {
+                            if (lastCoin !== "UNKNOWN") r.coin = lastCoin;
+                        }
+                        r.frDirection = currentDirection[r.coin] || null;
+                    }
+
+                    if (r.needsManualPnL) {
+                        if (!positions[r.coin]) positions[r.coin] = { longQty: 0, longCostTotal: 0, shortQty: 0, shortCostTotal: 0 };
+                        let pos = positions[r.coin];
+                        
+                        if (r.isManualOpen) {
+                            if (r.isPosLong) { pos.longCostTotal += (r.qty * r.price); pos.longQty += r.qty; } 
+                            else { pos.shortCostTotal += (r.qty * r.price); pos.shortQty += r.qty; }
+                            r.grossPnl = 0; 
+                        } else if (r.isManualClose) {
+                            if (r.isPosLong) {
+                                let unitCost = pos.longQty > 0 ? pos.longCostTotal / pos.longQty : 0;
+                                r.grossPnl = (r.price - unitCost) * r.qty;
+                                pos.longQty -= r.qty; pos.longCostTotal -= unitCost * r.qty;
+                                if (pos.longQty <= 0) { pos.longQty = 0; pos.longCostTotal = 0; }
+                            } else {
+                                let unitCost = pos.shortQty > 0 ? pos.shortCostTotal / pos.shortQty : 0;
+                                r.grossPnl = (unitCost - r.price) * r.qty;
+                                pos.shortQty -= r.qty; pos.shortCostTotal -= unitCost * r.qty;
+                                if (pos.shortQty <= 0) { pos.shortQty = 0; pos.shortCostTotal = 0; }
+                            }
+                            if (r.vol === 0) r.vol = r.price * r.qty;
+                        }
+                    } else {
+                        if (r.type === "net_type") r.grossPnl = r.pnl + Math.abs(r.fee);
+                        else r.grossPnl = r.pnl;
+                    }
+                });
+
+                if (autoNetPossible) displayToggle.checked = false; 
+                else displayToggle.checked = true; 
+                displayToggle.dispatchEvent(new Event('change'));
+                
+                if (latestBalance !== null && latestBalance > 0) {
+                    userBalanceInput.value = latestBalance;
+                }
+
+                dropText.innerHTML = `✅ Parsing complete (${files.length} file${files.length > 1 ? 's' : ''})`;
+                dropText.className = "text-sm md:text-lg text-green-400 font-bold";
+                
+                populateCoinSelect();
+                applyFiltersAndRender();
+            }, 10);
+        }
+
+        function extractRowsFromFile(file, allRows, callback) {
+            return new Promise((resolve) => {
+                Papa.parse(file, {
+                    header: true, 
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        if (!results.data || results.data.length === 0) return resolve();
+                        
+                        const firstRow = results.data[0];
+                        const headers = Object.keys(firstRow).map(k => k.trim());
+                        
+                        let isJST = false;
+                        if (headers.some(h => /(約定日時|発生日時|決済損益|発生金額|明細種別|レバレッジ手数料|受渡代金|日時|タイムスタンプ)/.test(h))) {
+                            isJST = true;
+                        }
+
+                        let pnlCol = headers.find(h => /(pnl|p\&l|profit|loss|realized|実現損益|損益|利益|決済損益)/i.test(h));
+                        let fallbackAmtCol = headers.find(h => /(payment|発生金額|amount|change|入出金|funding\s*fee|realized\s*funding)/i.test(h) && !/rate/i.test(h));
+                        let feeCol = headers.find(h => /(fee|commission|手数料|コスト)/i.test(h));
+                        let sideCol = headers.find(h => /(side|direction|売買|売\/買|方向)/i.test(h) && !/transaction/i.test(h));
+                        let dirCol = sideCol || headers.find(h => /(dir|action|type|区分|種別|明細種別|取引種別)/i.test(h) && !/transaction/i.test(h));
+                        let kbnCol = headers.find(h => /(type|action|区分|状態|取引種別)/i.test(h) && h !== dirCol);
+                        let frCol = headers.find(h => /(funding|fr|資金調達|payment|利息|発生金額|スワップ)/i.test(h)); 
+                        
+                        let isFrFile = (file.name && /(funding|fr)/i.test(file.name)) || (headers.some(h => /payment/i.test(h)) && headers.some(h => /rate/i.test(h)) && !pnlCol);
+
+                        let coinCol = headers.find(h => /(instrument|contract|coin|market|symbol|asset|pair|銘柄|通貨ペア)/i.test(h) && !/currency/i.test(h));
+                        let timeCol = headers.find(h => /(time|date|日時|タイムスタンプ|約定日時|発生日時|取引日時)/i.test(h));
+                        let priceCol = headers.find(h => /(price|px|価格|avg_price|約定価格)/i.test(h));
+                        let sizeCol = headers.find(h => /(size|sz|amount|qty|quantity|数量|実行数量)/i.test(h));
+                        let volCol = headers.find(h => /(volume|vol|notional|ntl|取引高|約定金額|value|金額)/i.test(h));
+                        let balCol = headers.find(h => /(balance|残高|wallet|equity)/i.test(h));
+
+                        let csvTypeMode = "gross_type"; 
+                        if (headers.includes("closedPnl") || headers.includes("execFee") || headers.includes("Closed P&L")) csvTypeMode = "net_type"; 
+
+                        let orderIdCol = null;
+                        const orderH = headers.find(h => /^(order_no|order_id|orderid|id|txid|transaction_id|transactionid|ticket)$/i.test(h) || /(order|transaction|txid)[\s_]*id/i.test(h));
+                        if (orderH) orderIdCol = orderH;
+
+                        if (callback) {
+                            let detSymbol = "";
+                            const assetH = headers.find(h => /(currency|ccy|asset|unit|通貨|単位)/i.test(h));
+                            if (assetH && firstRow[assetH]) detSymbol = firstRow[assetH].toString().toUpperCase().trim();
+                            
+                            let curObj = { type: 'prefix', symbol: '$' };
+                            if (detSymbol) {
+                                if (/(JPY|円)/i.test(detSymbol)) { curObj = { type: 'prefix', symbol: '¥' }; isJST = true; } 
+                                else if (/(USD|USDT|USDC)/i.test(detSymbol)) curObj = { type: 'prefix', symbol: '$' };
+                                else curObj = { type: 'suffix', symbol: detSymbol };
+                            } else {
+                                if (headers.some(h => /(約定日時|発生日時|決済損益|発生金額|明細種別|レバレッジ手数料|受渡代金)/.test(h))) curObj = { type: 'prefix', symbol: '¥' };
+                                else curObj = { type: 'prefix', symbol: '$' };
+                            }
+                            let isNetPossible = !!feeCol || (!pnlCol && (dirCol || kbnCol)) || csvTypeMode === "net_type";
+                            callback(curObj, isNetPossible);
+                        }
+
+                        results.data.forEach(row => {
+                            const cleanRow = {};
+                            for (let key in row) cleanRow[key.trim()] = typeof row[key] === 'string' ? row[key].trim() : row[key];
+
+                            let fileBalance = null;
+                            if (balCol && cleanRow[balCol] !== undefined && cleanRow[balCol] !== "") {
+                                let parsedBal = parseFloat(cleanRow[balCol]);
+                                if (!isNaN(parsedBal)) fileBalance = parsedBal;
+                            }
+
+                            let rawPnl = 0; let hasRealPnlCol = false;
+                            if (pnlCol && cleanRow[pnlCol] !== undefined && cleanRow[pnlCol] !== "") { rawPnl = parseFloat(cleanRow[pnlCol]) || 0; hasRealPnlCol = true; }
+
+                            let fee = feeCol ? (parseFloat(cleanRow[feeCol]) || 0) : 0;
+                            let frAmount = 0;
+                            let coinName = coinCol ? (cleanRow[coinCol] || "UNKNOWN") : "UNKNOWN";
+                            let priceVal = priceCol ? (parseFloat(cleanRow[priceCol]) || 0) : 0;
+                            let qtyVal = sizeCol ? (parseFloat(cleanRow[sizeCol]) || 0) : 0;
+                            let tradeVol = 0;
+                            if (volCol && cleanRow[volCol]) tradeVol = parseFloat(cleanRow[volCol]) || 0;
+                            else if (priceVal && qtyVal) tradeVol = priceVal * qtyVal;
+
+                            let isFRRow = false; let isCloseTrade = false; 
+                            let dVal = dirCol && cleanRow[dirCol] ? cleanRow[dirCol].toString() : "";
+                            let kbnVal = kbnCol && cleanRow[kbnCol] ? cleanRow[kbnCol].toString() : "";
+                            
+                            let needsManualPnL = false; let isManualOpen = false; let isManualClose = false;
+
+                            if (isFrFile || /(funding|fr|資金調達|利息|手数料|レバレッジ手数料|スワップ)/i.test(dVal) || /(funding|fr|資金調達|利息|手数料|レバレッジ手数料|スワップ)/i.test(kbnVal)) { 
+                                isFRRow = true; 
+                                if (cleanRow['スワップ'] !== undefined && parseFloat(cleanRow['スワップ']) !== 0) frAmount = parseFloat(cleanRow['スワップ']);
+                                else if (cleanRow['Amount'] !== undefined) frAmount = parseFloat(cleanRow['Amount']) || 0;
+                                else if (fallbackAmtCol && cleanRow[fallbackAmtCol]) frAmount = parseFloat(cleanRow[fallbackAmtCol]) || 0; 
+                                else if (sizeCol && cleanRow[sizeCol] && !hasRealPnlCol) frAmount = parseFloat(cleanRow[sizeCol]) || 0;
+                                else frAmount = rawPnl;
+                                rawPnl = 0; 
+                            } else if (/(close|out|決済|売却|買戻|建玉決済損益|exit|long\s*sell|short\s*buy)/i.test(dVal) || /(close|out|決済|売却|買戻|建玉決済損益|exit|long\s*sell|short\s*buy)/i.test(kbnVal)) {
+                                isCloseTrade = true;
+                                isManualClose = true;
+                                if (!hasRealPnlCol) needsManualPnL = true;
+                                if (/(建玉決済損益)/.test(dVal) || /(建玉決済損益)/.test(kbnVal)) rawPnl = fallbackAmtCol ? (parseFloat(cleanRow[fallbackAmtCol]) || 0) : rawPnl;
+                            }
+
+                            if (!isFRRow && !isCloseTrade) {
+                                if (/(新規|open|entry|enter|long\s*buy|short\s*sell)/i.test(kbnVal) || /(新規|open|entry|enter|long\s*buy|short\s*sell)/i.test(dVal)) { 
+                                    isManualOpen = true; 
+                                    if (!hasRealPnlCol) needsManualPnL = true;
+                                } 
+                                else if (hasRealPnlCol && rawPnl !== 0) {
+                                    isCloseTrade = true;
+                                }
+                            }
+
+                            if (isFRRow && /^(USDT|USDC|USD|JPY|EUR)$/i.test(coinName)) coinName = "FUNDING_FEE";
+
+                            let isLAction = true;
+                            if (/(short|sell|売り|売)/i.test(dVal) || /(short|sell|売り|売)/i.test(kbnVal)) isLAction = false;
+                            
+                            let isPosLong = isCloseTrade ? !isLAction : isLAction;
+                            if (/\blong\b|買建/i.test(dVal) || /\blong\b|買建/i.test(kbnVal)) isPosLong = true;
+                            else if (/\bshort\b|売建/i.test(dVal) || /\bshort\b|売建/i.test(kbnVal)) isPosLong = false;
+
+                            let tMs = 0;
+                            if (timeCol && cleanRow[timeCol]) {
+                                const localDate = parseToLocalDateTime(cleanRow[timeCol], isJST);
+                                if (!isNaN(localDate.getTime())) tMs = localDate.getTime();
+                            }
+
+                            let orderId = null;
+                            if (orderIdCol && cleanRow[orderIdCol]) orderId = cleanRow[orderIdCol].toString();
+
+                            allRows.push({ 
+                                t: tMs, pnl: rawPnl, fee: fee, fr: frAmount, vol: tradeVol, coin: coinName, 
+                                isFr: isFRRow, isCl: isCloseTrade, isPosLong: isPosLong, type: csvTypeMode,
+                                needsManualPnL: needsManualPnL, isManualOpen: isManualOpen, isManualClose: isManualClose,
+                                price: priceVal, qty: qtyVal, orderId: orderId,
+                                balance: fileBalance
+                            });
+                        });
+                        
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        function filterDuplicates(rows) {
+            const unique = new Map();
+            let cId = 0;
+            rows.forEach(r => {
+                if (r.orderId && !r.needsManualPnL) {
+                    const key = r.isFr ? `${r.orderId}_${r.t}` : r.orderId;
+                    if (!unique.has(key)) unique.set(key, r);
+                } else unique.set('u_' + (cId++), r);
+            });
+            return Array.from(unique.values()).sort((a, b) => a.t - b.t);
+        }
+
+        function applyFiltersAndRender() {
+            if (globalAllRows.length === 0) return;
+            const now = new Date();
+            const nowYear = now.getFullYear();
+            const nowMonth = now.getMonth();
+            const thirtyDaysAgoMs = now.getTime() - (30 * 24 * 60 * 60 * 1000);
+
+            const cleanRows = filterDuplicates(globalAllRows);
+            const filteredRows = cleanRows.filter(r => {
+                let isPosLong = r.isPosLong; 
+                if (currentFilters.direction === 'long') {
+                    if (r.isFr && r.frDirection === 'short') return false; 
+                    if (!r.isFr && !isPosLong) return false;
+                }
+                if (currentFilters.direction === 'short') {
+                    if (r.isFr && r.frDirection === 'long') return false; 
+                    if (!r.isFr && isPosLong) return false;
+                }
+                if (currentFilters.coin !== 'all' && r.coin !== currentFilters.coin) return false;
+                if (currentFilters.period !== 'all') {
+                    const rDate = new Date(r.t);
+                    if (currentFilters.period === 'year' && rDate.getFullYear() !== nowYear) return false;
+                    if (currentFilters.period === 'month' && (rDate.getFullYear() !== nowYear || rDate.getMonth() !== nowMonth)) return false;
+                    if (currentFilters.period === '30d' && rDate.getTime() < thirtyDaysAgoMs) return false;
+                }
+                return true;
+            });
+
+            const aggregatedData = aggregateData(filteredRows, displayToggle.checked);
+            currentAggregatedData = aggregatedData;
+
+            dashboard.classList.remove('hidden');
+            
+            renderMainTab(aggregatedData);
+            setTimeout(() => renderCalendarTab(aggregatedData), 10);
+            setTimeout(() => renderRiskAndAssetsTab(aggregatedData), 20);
+        }
+
+        function aggregateData(rows, isGrossMode) {
+            let agg = {
+                trades:0, winTrades:0, lossCount:0, grossProfit:0, grossLoss:0, totalFee:0, totalFR:0, netPnl:0, 
+                cumulative:0, peak:0, maxDD:0, totalVolume:0, best:-Infinity, worst:Infinity,
+                winStreak:0, lossStreak:0, maxWinStreak:0, maxLossStreak:0,
+                chartData:[], chartLabels:[], lossStreakCounts:{},
+                heatmapStats: Array(7).fill(null).map(() => Array(24).fill(null).map(() => ({ trades: 0, winTrades: 0, grossProfit: 0, grossLoss: 0, pnl: 0 }))),
+                coinStats:{}, monthStats:{}, dailyStats:{}, 
+                dowStats: Array(7).fill(null).map(()=>({trades:0, winTrades:0, grossProfit:0, grossLoss:0})),
+                afterLoss: {1:{trades:0,win:0,pnl:0}, 2:{trades:0,win:0,pnl:0}, 3:{trades:0,win:0,pnl:0}},
+                rawPnlList: [], maxWinTrade: null, maxLossTrade: null,
+                lsStats: { long: { trades:0, winTrades:0, netPnl:0 }, short: { trades:0, winTrades:0, netPnl:0 } }
+            };
+
+            const sampleRate = Math.max(1, Math.floor(rows.length / 300));
+            let idx = 0;
+            function initCoinStat(ag, cName) { ag.coinStats[cName] = { count: 0, winCount: 0, lossCount: 0, pnl: 0, grossProfit: 0, grossLoss: 0, maxWin: -Infinity, maxLoss: Infinity, lCount: 0, lWin: 0, lPnl: 0, sCount: 0, sWin: 0, sPnl: 0 }; }
+
+            rows.forEach(r => {
+                const dateObj = new Date(r.t);
+                const hour = dateObj.getHours();
+                const dayOfWeek = dateObj.getDay();
+                const monthStr = dateObj.getFullYear() + "-" + String(dateObj.getMonth() + 1).padStart(2, '0');
+                const dateStr = dateObj.getFullYear() + "-" + String(dateObj.getMonth() + 1).padStart(2, '0') + "-" + String(dateObj.getDate()).padStart(2, '0');
+
+                if (!agg.dailyStats[dateStr]) agg.dailyStats[dateStr] = { trades: 0, winTrades: 0, grossProfit: 0, grossLoss: 0, pnl: 0 };
+
+                let stepPnl = 0;
+                if (r.isFr) {
+                    agg.totalFR += r.fr;
+                    if (!isGrossMode) {
+                        stepPnl += r.fr;
+                        agg.dailyStats[dateStr].pnl += r.fr;
+                        agg.heatmapStats[dayOfWeek][hour].pnl += r.fr;
+                    }
+                    if (r.coin !== "FUNDING_FEE" && r.coin !== "UNKNOWN") {
+                        if (!agg.coinStats[r.coin]) initCoinStat(agg, r.coin);
+                        if (!isGrossMode) agg.coinStats[r.coin].pnl += r.fr;
+                    }
+                }
+
+                agg.totalFee -= Math.abs(r.fee);
+                let isPosLong = r.isPosLong; 
+
+                if (r.isCl && !r.isFr) {
+                    let displayPnl = isGrossMode ? r.grossPnl : r.grossPnl - Math.abs(r.fee);
+                    stepPnl += displayPnl;
+                    
+                    agg.dailyStats[dateStr].pnl += displayPnl;
+                    agg.dailyStats[dateStr].trades++;
+                    agg.heatmapStats[dayOfWeek][hour].pnl += displayPnl;
+                    agg.heatmapStats[dayOfWeek][hour].trades++;
+
+                    agg.totalVolume += r.vol; agg.trades++;
+                    let target = isPosLong ? agg.lsStats.long : agg.lsStats.short;
+                    target.trades++; target.netPnl += displayPnl; if (displayPnl > 0) target.winTrades++;
+
+                    agg.rawPnlList.push(displayPnl);
+                    
+                    if (r.coin !== "FUNDING_FEE" && r.coin !== "UNKNOWN") {
+                        if (!agg.coinStats[r.coin]) initCoinStat(agg, r.coin);
+                        const tradeMeta = { pnl: displayPnl, coin: r.coin, day: dayOfWeek, hour: hour };
+                        if (!agg.maxWinTrade || displayPnl > agg.maxWinTrade.pnl) agg.maxWinTrade = tradeMeta;
+                        if (!agg.maxLossTrade || displayPnl < agg.maxLossTrade.pnl) agg.maxLossTrade = tradeMeta;
+
+                        agg.coinStats[r.coin].count++; agg.coinStats[r.coin].pnl += displayPnl;
+                        
+                        if (isPosLong) { agg.coinStats[r.coin].lCount++; agg.coinStats[r.coin].lPnl += displayPnl; if (displayPnl > 0) agg.coinStats[r.coin].lWin++; } 
+                        else { agg.coinStats[r.coin].sCount++; agg.coinStats[r.coin].sPnl += displayPnl; if (displayPnl > 0) agg.coinStats[r.coin].sWin++; }
+
+                        if (displayPnl > 0) { agg.coinStats[r.coin].winCount++; agg.coinStats[r.coin].grossProfit += displayPnl; } 
+                        else if (displayPnl < 0) { agg.coinStats[r.coin].lossCount++; agg.coinStats[r.coin].grossLoss += displayPnl; }
+
+                        if (displayPnl > agg.coinStats[r.coin].maxWin) agg.coinStats[r.coin].maxWin = displayPnl;
+                        if (displayPnl < agg.coinStats[r.coin].maxLoss) agg.coinStats[r.coin].maxLoss = displayPnl;
+                    }
+
+                    let prevStreak = agg.lossStreak;
+                    if (prevStreak > 0 && prevStreak <= 3) { agg.afterLoss[prevStreak].trades++; agg.afterLoss[prevStreak].pnl += displayPnl; if (displayPnl > 0) agg.afterLoss[prevStreak].win++; } 
+                    else if (prevStreak > 3) { agg.afterLoss[3].trades++; agg.afterLoss[3].pnl += displayPnl; if (displayPnl > 0) agg.afterLoss[3].win++; }
+
+                    agg.dowStats[dayOfWeek].trades++;
+                    if (displayPnl > 0) {
+                        agg.dowStats[dayOfWeek].winTrades++; agg.dowStats[dayOfWeek].grossProfit += displayPnl;
+                        agg.dailyStats[dateStr].winTrades++; agg.dailyStats[dateStr].grossProfit += displayPnl;
+                        agg.heatmapStats[dayOfWeek][hour].winTrades++; agg.heatmapStats[dayOfWeek][hour].grossProfit += displayPnl;
+
+                        agg.winTrades++; agg.grossProfit += displayPnl; agg.winStreak++;
+                        if (agg.lossStreak > 0) { agg.lossStreakCounts[agg.lossStreak] = (agg.lossStreakCounts[agg.lossStreak] || 0) + 1; agg.lossStreak = 0; }
+                        if (agg.winStreak > agg.maxWinStreak) agg.maxWinStreak = agg.winStreak;
+                    } else if (displayPnl < 0) {
+                        agg.dowStats[dayOfWeek].grossLoss += displayPnl;
+                        agg.dailyStats[dateStr].grossLoss += displayPnl;
+                        agg.heatmapStats[dayOfWeek][hour].grossLoss += displayPnl;
+
+                        agg.grossLoss += displayPnl; agg.lossCount++;
+                        agg.lossStreak++; agg.winStreak = 0;
+                        if (agg.lossStreak > agg.maxLossStreak) agg.maxLossStreak = agg.lossStreak;
+                    }
+
+                    if (displayPnl > agg.best) agg.best = displayPnl;
+                    if (displayPnl < agg.worst) agg.worst = displayPnl;
+
+                    if (!agg.monthStats[monthStr]) agg.monthStats[monthStr] = 0; agg.monthStats[monthStr] += displayPnl;
+                } else if (!r.isFr && !r.isCl) {
+                    if (!isGrossMode && r.fee !== 0) {
+                        stepPnl -= Math.abs(r.fee);
+                        agg.dailyStats[dateStr].pnl -= Math.abs(r.fee);
+                        agg.heatmapStats[dayOfWeek][hour].pnl -= Math.abs(r.fee);
+                    }
+                }
+
+                agg.netPnl += stepPnl;
+                agg.cumulative += stepPnl;
+                if (agg.cumulative > agg.peak) agg.peak = agg.cumulative;
+                let dd = agg.cumulative - agg.peak;
+                if (dd < agg.maxDD) agg.maxDD = dd;
+
+                if (stepPnl !== 0 || (r.isCl && !r.isFr)) {
+                    if (agg.chartData.length === 0 || idx % sampleRate === 0 || idx === rows.length - 1) {
+                        agg.chartData.push(agg.cumulative); 
+                        agg.chartLabels.push(`#${agg.chartData.length}`);
+                    }
+                }
+                idx++;
+            });
+
+            if (agg.lossStreak > 0) agg.lossStreakCounts[agg.lossStreak] = (agg.lossStreakCounts[agg.lossStreak] || 0) + 1;
+            return agg;
+        }
+
+        function renderMainTab(targetData) {
+            const winRateNum = targetData.trades > 0 ? (targetData.winTrades / targetData.trades) : 0;
+            const avgW = targetData.winTrades > 0 ? (targetData.grossProfit / targetData.winTrades) : 0;
+            const avgL = targetData.lossCount > 0 ? Math.abs(targetData.grossLoss / targetData.lossCount) : 0;
+            const expectancy = targetData.trades > 0 ? ((targetData.grossProfit + targetData.grossLoss) / targetData.trades) : 0;
+            const currentPf = targetData.grossLoss === 0 ? (targetData.grossProfit > 0 ? Infinity : 0) : (targetData.grossProfit / Math.abs(targetData.grossLoss));
+            const rrRatio = avgL > 0 ? (avgW / avgL) : 0;
+
+            document.getElementById('val-netpnl').innerText = formatCurrency(targetData.netPnl, globalCurrency);
+            document.getElementById('val-netpnl').className = `text-4xl md:text-6xl font-extrabold tracking-tight transition-all duration-300 ${targetData.netPnl >= 0 ? 'text-green-400' : 'text-red-400'}`;
+            document.getElementById('val-trades').innerText = `${targetData.trades}`;
+            document.getElementById('val-winrate').innerText = `${(winRateNum * 100).toFixed(2)} %`;
+            document.getElementById('val-pf').innerText = currentPf === Infinity ? "∞" : currentPf.toFixed(2);
+            document.getElementById('val-pf').className = `font-bold text-sm ${currentPf >= 1.0 ? 'text-green-400' : 'text-red-400'}`;
+            document.getElementById('val-expectancy').innerText = formatCurrency(expectancy, globalCurrency);
+            document.getElementById('val-expectancy').className = `font-bold text-sm ${expectancy >= 0 ? 'text-green-400' : 'text-red-400'}`;
+            document.getElementById('val-avg-win').innerText = formatCurrency(avgW, globalCurrency);
+            document.getElementById('val-avg-loss').innerText = formatCurrency(-avgL, globalCurrency);
+            document.getElementById('val-rr').innerText = rrRatio > 0 ? rrRatio.toFixed(2) : "-";
+            document.getElementById('val-volume').innerText = formatCompactCurrency(targetData.totalVolume, globalCurrency, false);
+            
+            const displayFee = -Math.abs(targetData.totalFee);
+            document.getElementById('val-fee-detail').innerText = formatCurrency(displayFee, globalCurrency);
+            document.getElementById('val-fr-detail').innerText = formatCurrency(targetData.totalFR, globalCurrency);
+            document.getElementById('val-fr-detail').className = `font-bold text-sm ${targetData.totalFR >= 0 ? 'text-green-400' : 'text-red-400'}`;
+
+            const iWinEl = document.getElementById('insight-max-win');
+            const iLossEl = document.getElementById('insight-max-loss');
+            const daysStr = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            if (targetData.maxWinTrade && targetData.maxWinTrade.pnl > 0) {
+                iWinEl.innerHTML = `<li>Asset: ${targetData.maxWinTrade.coin} (${formatCurrency(targetData.maxWinTrade.pnl, globalCurrency)})</li><li>Timing: ${daysStr[targetData.maxWinTrade.day]} ${targetData.maxWinTrade.hour}:00</li>`;
+            } else { iWinEl.innerHTML = "<li class='text-gray-500'>No data</li>"; }
+            if (targetData.maxLossTrade && targetData.maxLossTrade.pnl < 0) {
+                iLossEl.innerHTML = `<li>Asset: ${targetData.maxLossTrade.coin} (${formatCurrency(targetData.maxLossTrade.pnl, globalCurrency)})</li><li>Timing: ${daysStr[targetData.maxLossTrade.day]} ${targetData.maxLossTrade.hour}:00</li>`;
+            } else { iLossEl.innerHTML = "<li class='text-gray-500'>No data</li>"; }
+
+            let lsHtml = [];
+            ['long','short'].forEach(k => {
+                const sData = targetData.lsStats[k];
+                if (!sData) return;
+                const wr = sData.trades > 0 ? ((sData.winTrades / sData.trades)*100).toFixed(0) : "0";
+                lsHtml.push(`<tr class="border-b border-gray-800"><td class="py-2 font-bold capitalize ${k==='long'?'text-blue-400':'text-yellow-500'}">${k}</td><td class="text-right text-gray-400 py-2">${wr}%</td><td class="text-right font-bold py-2 ${sData.netPnl>=0?'text-green-400':'text-red-400'}">${formatCurrency(sData.netPnl, globalCurrency)}</td></tr>`);
+            });
+            document.getElementById('ls-compare-body').innerHTML = lsHtml.join('');
+
+            try {
+                if (chartInstance) chartInstance.destroy();
+                chartInstance = new Chart(document.getElementById('pnlChart').getContext('2d'), { 
+                    type: 'line', 
+                    data: { labels: targetData.chartLabels, datasets: [{ label: 'Cumulative PnL', data: targetData.chartData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.05)', borderWidth: 2, pointRadius: 0, fill: true, tension: 0.1 }] }, 
+                    options: { ...fastChartOptions, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#334155' } } } } 
+                });
+            } catch(e) {}
+
+            globalStats = { winRate: `${(winRateNum * 100).toFixed(2)}%`, pf: currentPf === Infinity ? "∞" : currentPf.toFixed(2), pnl: formatCurrency(targetData.netPnl, globalCurrency), expectancy: formatCurrency(expectancy, globalCurrency) };
+        }
+
+        function renderCalendarTab(targetData) {
+            const daysStr = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const expectancy = targetData.trades > 0 ? ((targetData.grossProfit + targetData.grossLoss) / targetData.trades) : 0;
+
+            const hContainer = document.getElementById('heatmap-container'); hContainer.innerHTML = "";
+            let hHtml = `<div class="grid grid-cols-25 gap-0.5 mb-1"><div class="text-gray-500 font-bold">Day</div>`;
+            for(let h=0; h<24; h++) hHtml += `<div class="text-[8px] text-gray-500 font-mono">${h}</div>`;
+            hHtml += `</div>`;
+            
+            for (let d=0; d<7; d++) {
+                hHtml += `<div class="grid grid-cols-25 gap-0.5 mb-0.5"><div class="text-gray-400 font-bold bg-gray-900 py-1 rounded-l text-[9px] flex items-center justify-center">${daysStr[d]}</div>`;
+                for (let h=0; h<24; h++) {
+                    const cellData = targetData.heatmapStats[d][h];
+                    const val = cellData.pnl;
+                    
+                    let bg = "bg-gray-800 text-gray-600";
+                    let cursorClass = "";
+                    let clickAttr = "";
+
+                    if (cellData.trades > 0 || val !== 0) {
+                        cursorClass = "cursor-pointer transition-colors";
+                        clickAttr = `onclick="showDailyModal('heatmap', '${d}-${h}', '${daysStr[d]} ${h}:00')"`;
+
+                        if (val > 0) bg = val > (expectancy*3) ? "bg-green-500 text-white font-bold hover:bg-green-400" : "bg-green-700/50 text-green-200 hover:bg-green-600";
+                        else if (val < 0) bg = Math.abs(val) > (expectancy*3) ? "bg-red-500 text-white font-bold hover:bg-red-400" : "bg-red-900/50 text-red-300 hover:bg-red-800";
+                        else bg = "bg-gray-700 hover:bg-gray-600";
+                    }
+                    
+                    hHtml += `<div class="${bg} ${cursorClass} py-1 text-[8px] border border-gray-900/10" title="${daysStr[d]} ${h}:00: ${val.toFixed(2)}" ${clickAttr}>${val!==0?(val>0?'＋':'－'):'・'}</div>`;
+                }
+                hHtml += `</div>`;
+            }
+            hContainer.innerHTML = hHtml;
+
+            let dowHtml = [];
+            targetData.dowStats.forEach((st, idx) => {
+                st.dayIdx = idx;
+                st.netPnl = st.grossProfit + st.grossLoss;
+                st.wr = st.trades > 0 ? (st.winTrades / st.trades) : 0;
+                st.pf = st.grossLoss === 0 ? (st.grossProfit > 0 ? "∞" : "0.00") : Math.abs(st.grossProfit / st.grossLoss).toFixed(2);
+                st.exp = st.trades > 0 ? ((st.grossProfit + st.grossLoss) / st.trades) : 0; 
+            });
+            targetData.dowStats.forEach(st => {
+                dowHtml.push(`<tr class="border-b border-gray-800 hover:bg-gray-700/30">
+                    <td class="py-1 font-bold ${st.netPnl>=0?'text-green-400':'text-red-400'}">${daysStr[st.dayIdx]}</td>
+                    <td class="text-right py-1 text-gray-300">${(st.wr*100).toFixed(1)}%</td>
+                    <td class="text-right py-1 text-gray-300">${st.pf}</td>
+                    <td class="text-right py-1 text-gray-300">${formatCurrency(st.exp, globalCurrency)}</td>
+                </tr>`);
+            });
+            document.getElementById('dow-ranking-body').innerHTML = dowHtml.join('');
+
+            let hourlyPnL = Array(24).fill(0);
+            targetData.heatmapStats.forEach(day => day.forEach((h, i) => hourlyPnL[i] += h.pnl));
+            let hrList = hourlyPnL.map((v, i) => ({h: i, pnl: v})).sort((a,b)=>b.pnl - a.pnl);
+            
+            let hrHtml = [];
+            for(let i=0; i<3; i++) {
+                if(!hrList[i] || !hrList[hrList.length-1-i]) break;
+                let top = hrList[i]; let bottom = hrList[hrList.length-1-i];
+                hrHtml.push(`<tr class="border-b border-gray-800">
+                    <td class="py-1 text-blue-300 font-mono">${top.h}:00</td><td class="text-right py-1 text-green-400 font-bold">${formatCompactCurrency(top.pnl, globalCurrency)}</td>
+                    <td class="py-1 pl-4 text-gray-500 font-mono">${bottom.h}:00</td><td class="text-right py-1 text-red-400 font-bold">${formatCompactCurrency(bottom.pnl, globalCurrency)}</td>
+                </tr>`);
+            }
+            document.getElementById('hourly-ranking-body').innerHTML = hrHtml.join('');
+
+            const calContainer = document.getElementById('calendar-container'); calContainer.innerHTML = "";
+            const monthGroups = {};
+            Object.keys(targetData.dailyStats).forEach(dateStr => {
+                const ym = dateStr.substring(0, 7);
+                if (!monthGroups[ym]) monthGroups[ym] = {};
+                monthGroups[ym][dateStr] = targetData.dailyStats[dateStr];
+            });
+
+            const sortedMonths = Object.keys(monthGroups).sort().reverse();
+            if (sortedMonths.length === 0) {
+                calContainer.innerHTML = "<p class='text-gray-500 text-center py-4'>No data</p>";
+            } else {
+                sortedMonths.forEach(ym => {
+                    const [year, month] = ym.split('-');
+                    const monthDiv = document.createElement('div');
+                    monthDiv.className = "bg-gray-900 p-2 md:p-3 rounded-lg border border-gray-800 mb-4";
+                    
+                    let html = `<h4 class="text-gray-300 font-bold mb-2 ml-1 text-xs md:text-sm">${year} / ${parseInt(month)}</h4>`;
+                    html += `<div class="grid grid-cols-7 gap-1 text-center mb-1 text-[10px] text-gray-500"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>`;
+                    html += `<div class="grid grid-cols-7 gap-1">`;
+                    
+                    const firstDay = new Date(year, parseInt(month) - 1, 1).getDay();
+                    const daysInMonth = new Date(year, parseInt(month), 0).getDate();
+                    
+                    for(let i=0; i<firstDay; i++) html += `<div class="p-1"></div>`;
+                    
+                    for(let d=1; d<=daysInMonth; d++) {
+                        const dateStr = `${year}-${month}-${String(d).padStart(2, '0')}`;
+                        const dayData = monthGroups[ym] && monthGroups[ym][dateStr];
+                        const val = dayData ? dayData.pnl : 0;
+                        
+                        let bg = "bg-gray-800/50 border-gray-800"; 
+                        let textClass = "text-gray-600"; 
+                        let valText = "-";
+                        let clickAttr = "";
+                        let cursorClass = "";
+                        
+                        if (dayData && dayData.trades > 0) {
+                             const roundedVal = Math.round(val);
+                             cursorClass = "cursor-pointer hover:border-gray-500";
+                             clickAttr = `onclick="showDailyModal('calendar', '${dateStr}', '${year}-${month.padStart(2, '0')}-${String(d).padStart(2, '0')}')"`;
+                             
+                             if (roundedVal > 0) { bg = "bg-green-900/20 border-green-800/50 hover:bg-green-800/40"; textClass = "text-green-400 font-bold"; valText = formatCalendarCurrency(val, globalCurrency); }
+                             else if (roundedVal < 0) { bg = "bg-red-900/20 border-red-800/50 hover:bg-red-800/40"; textClass = "text-red-400 font-bold"; valText = formatCalendarCurrency(val, globalCurrency); }
+                             else { valText = "±0"; textClass = "text-gray-400"; bg="hover:bg-gray-700/50"; }
+                        } else {
+                             valText = "±0";
+                             textClass = "text-gray-600";
+                             bg = "bg-gray-800/50 border-gray-800";
+                        }
+                        
+                        html += `<div class="p-1 border rounded flex flex-col justify-between items-center h-12 ${bg} ${cursorClass} transition-colors" ${clickAttr}>
+                            <span class="text-[9px] text-gray-500 self-start leading-none">${d}</span>
+                            <span class="text-[10px] md:text-[11px] ${textClass} leading-tight tracking-tighter truncate w-full text-center mt-1" title="${formatCurrency(val, globalCurrency)}">${valText}</span>
+                        </div>`;
+                    }
+                    html += `</div>`; monthDiv.innerHTML = html; calContainer.appendChild(monthDiv);
+                });
+            }
+        }
+
+        function renderRiskAndAssetsTab(targetData) {
+            const winRateNum = targetData.trades > 0 ? (targetData.winTrades / targetData.trades) : 0;
+            const avgW = targetData.winTrades > 0 ? (targetData.grossProfit / targetData.winTrades) : 0;
+            const avgL = targetData.lossCount > 0 ? Math.abs(targetData.grossLoss / targetData.lossCount) : 0;
+            const rrRatio = avgL > 0 ? (avgW / avgL) : 0;
+            const lossRateNum = targetData.trades > 0 ? (targetData.lossCount / targetData.trades) : 0;
+            let kellyFull = 0;
+            
+            const kFullEl = document.getElementById('val-kelly-full');
+            const kHalfEl = document.getElementById('val-kelly-half');
+            const kQuarterEl = document.getElementById('val-kelly-quarter');
+
+            if (targetData.trades > 0 && targetData.lossCount === 0) {
+                const msg = `<span class="text-gray-400 text-xs">No loss data (cannot calc)</span>`;
+                kFullEl.innerHTML = msg; kHalfEl.innerHTML = msg; kQuarterEl.innerHTML = msg;
+                currentKellyHalf = 0;
+            } else if (winRateNum > 0 && rrRatio > 0) { 
+                kellyFull = winRateNum - (lossRateNum / rrRatio); 
+                if (kellyFull <= 0) {
+                    const msg = `<span class="text-red-400 text-xs">Negative Expectancy</span>`;
+                    kFullEl.innerHTML = msg; kHalfEl.innerHTML = msg; kQuarterEl.innerHTML = msg;
+                    currentKellyHalf = 0;
+                } else {
+                    currentKellyHalf = kellyFull * 0.5;
+                    kFullEl.innerHTML = `${(kellyFull * 100).toFixed(2)} %`;
+                    kHalfEl.innerHTML = `${(kellyFull * 50).toFixed(2)} %`;
+                    kQuarterEl.innerHTML = `${(kellyFull * 25).toFixed(2)} %`;
+                }
+            } else {
+                const msg = `<span class="text-gray-500 text-xs">-</span>`;
+                kFullEl.innerHTML = msg; kHalfEl.innerHTML = msg; kQuarterEl.innerHTML = msg;
+                currentKellyHalf = 0;
+            }
+
+            userBalanceInput.dispatchEvent(new Event('input')); 
+
+            document.getElementById('val-risk-maxdd').innerText = formatCurrency(targetData.maxDD, globalCurrency);
+            document.getElementById('val-streak-win').innerText = `${targetData.maxWinStreak}`;
+            document.getElementById('val-risk-lossstreak').innerText = `${targetData.maxLossStreak}`;
+            document.getElementById('val-risk-worst').innerText = targetData.worst === Infinity ? "-" : formatCurrency(targetData.worst, globalCurrency);
+
+            const pLossBody = document.getElementById('post-loss-body');
+            let plHtml = [];
+            [1, 2, 3].forEach(n => {
+                const st = targetData.afterLoss[n];
+                if (st && st.trades > 0) {
+                    const wr = (st.win / st.trades) * 100;
+                    const avg = st.pnl / st.trades;
+                    plHtml.push(`<tr class="border-b border-gray-800"><td class="py-1 text-gray-400">After ${n}${n===3?'+':''} loss</td><td class="text-right py-1 text-gray-300">${st.trades}</td><td class="text-right py-1 text-gray-300">${wr.toFixed(1)}%</td><td class="text-right py-1 text-gray-500">-</td><td class="text-right py-1 ${avg>=0?'text-green-400':'text-red-400'}">${formatCurrency(avg, globalCurrency)}</td></tr>`);
+                }
+            });
+            if(plHtml.length === 0) pLossBody.innerHTML = "<tr><td colspan='5' class='text-center text-gray-500 py-2'>No data</td></tr>";
+            else pLossBody.innerHTML = plHtml.join('');
+
+            try {
+                if (pnlHistogramChart) pnlHistogramChart.destroy();
+                if (targetData.rawPnlList.length > 0) {
+                    const maxP = Math.max(...targetData.rawPnlList);
+                    const minP = Math.min(...targetData.rawPnlList);
+                    const binCount = 10;
+                    const range = maxP - minP;
+                    const binSize = range === 0 ? 1 : range / binCount;
+                    let bins = Array(binCount).fill(0);
+                    targetData.rawPnlList.forEach(p => {
+                        let b = Math.floor((p - minP) / binSize);
+                        if (b >= binCount) b = binCount - 1;
+                        bins[b]++;
+                    });
+                    let labels = [];
+                    let colors = [];
+                    for(let i=0; i<binCount; i++) {
+                        const bStart = minP + (i*binSize);
+                        const bEnd = bStart + binSize;
+                        labels.push(`${formatCompactCurrency(bStart, globalCurrency, false)} ~`);
+                        colors.push(bEnd <= 0 ? 'rgba(248, 113, 113, 0.8)' : 'rgba(74, 222, 128, 0.8)');
+                    }
+                    pnlHistogramChart = new Chart(document.getElementById('pnlHistogramChart').getContext('2d'), {
+                        type: 'bar',
+                        data: { labels: labels, datasets: [{ data: bins, backgroundColor: colors }] },
+                        options: { ...fastChartOptions, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 9 }, maxRotation: 45, minRotation: 45 }, grid: { display: false } }, y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#334155' } } } }
+                    });
+                }
+            } catch(e) { console.error("Histogram error:", e); }
+
+            const rnkBody = document.getElementById('coin-ranking-body');
+            const allCoins = Object.keys(targetData.coinStats);
+            const sortedByPnL = [...allCoins].sort((a,b) => targetData.coinStats[b].pnl - targetData.coinStats[a].pnl).slice(0, 10);
+            const topPnLData = sortedByPnL.map(c => targetData.coinStats[c].pnl);
+            const topPnLColors = topPnLData.map(v => v >= 0 ? 'rgba(74, 222, 128, 0.8)' : 'rgba(248, 113, 113, 0.8)');
+
+            const sortedByCount = [...allCoins].sort((a,b) => targetData.coinStats[b].count - targetData.coinStats[a].count).slice(0, 10);
+            const topCountData = sortedByCount.map(c => targetData.coinStats[c].count);
+            const doughnutColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#f43f5e', '#06b6d4', '#14b8a6', '#84cc16'];
+
+            try {
+                if(assetBarChart) assetBarChart.destroy();
+                assetBarChart = new Chart(document.getElementById('assetBarChart').getContext('2d'), {
+                    type: 'bar',
+                    data: { labels: sortedByPnL, datasets: [{ label: 'PnL', data: topPnLData, backgroundColor: topPnLColors, borderRadius: 4 }] },
+                    options: { ...fastChartOptions, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } }, y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#334155' } } } }
+                });
+            } catch(e) {}
+
+            try {
+                if(assetDoughnutChart) assetDoughnutChart.destroy();
+                assetDoughnutChart = new Chart(document.getElementById('assetDoughnutChart').getContext('2d'), {
+                    type: 'doughnut',
+                    data: { labels: sortedByCount, datasets: [{ data: topCountData, backgroundColor: doughnutColors, borderWidth: 0 }] },
+                    options: { ...fastChartOptions, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 10 } } }, cutout: '65%' }
+                });
+            } catch(e) {}
+
+            let rnkHtml = [];
+            allCoins.sort((a,b)=>targetData.coinStats[b].pnl - targetData.coinStats[a].pnl).forEach(c => {
+                const stat = targetData.coinStats[c];
+                const wrCoin = stat.count > 0 ? ((stat.winCount / stat.count) * 100).toFixed(1) : 0;
+                const avgCoin = stat.count > 0 ? (stat.pnl / stat.count) : 0;
+                const pfCoin = stat.grossLoss === 0 ? (stat.grossProfit > 0 ? "∞" : "0.00") : Math.abs(stat.grossProfit / stat.grossLoss).toFixed(2);
+                const mWin = (stat.winCount > 0 && stat.maxWin !== -Infinity) ? formatCompactCurrency(stat.maxWin, globalCurrency) : "-";
+                const mLoss = (stat.lossCount > 0 && stat.maxLoss !== Infinity) ? formatCompactCurrency(stat.maxLoss, globalCurrency) : "-";
+                const lWrText = stat.lCount > 0 ? ((stat.lWin / stat.lCount) * 100).toFixed(0) + "%" : "-";
+                const sWrText = stat.sCount > 0 ? ((stat.sWin / stat.sCount) * 100).toFixed(0) + "%" : "-";
+
+                rnkHtml.push(`<tr class="border-b border-gray-800 hover:bg-gray-700/80 transition-colors cursor-pointer group" onclick="setCoinFilter('${c}')">
+                    <td class="py-2 px-2 sticky left-0 bg-gray-800/90 group-hover:bg-gray-700/90 font-mono font-bold text-blue-400 group-hover:text-blue-300 underline decoration-blue-500/50 underline-offset-2" title="Click to filter by this asset">${c}</td>
+                    <td class="text-right py-2 px-2 text-gray-400">${stat.count}</td>
+                    <td class="text-right py-2 px-2 text-gray-300">${wrCoin}%</td>
+                    <td class="text-right py-2 px-2 font-mono text-xs ${avgCoin>=0?'text-green-400':'text-red-400'}">${formatCompactCurrency(avgCoin, globalCurrency)}</td>
+                    <td class="text-right py-2 px-2 font-mono text-xs text-green-400">${mWin}</td>
+                    <td class="text-right py-2 px-2 font-mono text-xs text-red-400">${mLoss}</td>
+                    <td class="text-right py-2 px-2 font-mono text-xs text-gray-300">${pfCoin}</td>
+                    <td class="text-right py-2 px-2 border-l border-gray-700/50 text-blue-300 text-[11px]">${stat.lCount}</td>
+                    <td class="text-right py-2 px-2 text-blue-300 text-[11px]">${lWrText}</td>
+                    <td class="text-right py-2 px-2 font-mono text-[11px] ${stat.lPnl>=0?'text-green-400':'text-red-400'}">${stat.lCount>0 ? formatCompactCurrency(stat.lPnl, globalCurrency) : '-'}</td>
+                    <td class="text-right py-2 px-2 border-l border-gray-700/50 text-yellow-500 text-[11px]">${stat.sCount}</td>
+                    <td class="text-right py-2 px-2 text-yellow-500 text-[11px]">${sWrText}</td>
+                    <td class="text-right py-2 px-2 font-mono text-[11px] ${stat.sPnl>=0?'text-green-400':'text-red-400'}">${stat.sCount>0 ? formatCompactCurrency(stat.sPnl, globalCurrency) : '-'}</td>
+                    <td class="text-right py-2 px-2 border-l border-gray-700/50 font-bold font-mono text-xs ${stat.pnl>=0?'text-green-400':'text-red-400'}">${formatCurrency(stat.pnl, globalCurrency)}</td>
+                </tr>`);
+            });
+            rnkBody.innerHTML = rnkHtml.join('');
+        }
+
+        document.getElementById('shareBtn').addEventListener('click', () => {
+            const text = `📊 Quick Trade Analysis Complete\n・Net PnL: ${globalStats.pnl}\n・PF: ${globalStats.pf}\n・Win Rate: ${globalStats.winRate}\n・Expectancy: ${globalStats.expectancy}\n\n100% local, auto-analysis from CSV.\n#Crypto #PnLAnalyzer\n👇 Check your own performance for free\nhttps://your-tool-url.com`;
+            window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
+        });
+    </script>
+</body>
+</html>
