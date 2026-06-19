@@ -27,6 +27,8 @@
         select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1em; padding-right: 2rem !important; }
         .toggle-checkbox:checked { right: 0; border-color: #10b981; }
         .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
+        .privacy-checkbox:checked { right: 0; border-color: #a855f7; }
+        .privacy-checkbox:checked + .privacy-label { background-color: #a855f7; }
     </style>
 </head>
 <body class="min-h-screen p-4 md:p-8 relative">
@@ -49,7 +51,7 @@
                     <button id="period-all" class="period-btn flex-1 md:flex-none px-3 py-1.5 rounded font-bold transition-colors bg-blue-600 text-white">全期間</button>
                     <button id="period-year" class="period-btn flex-1 md:flex-none px-3 py-1.5 rounded font-bold transition-colors text-gray-400 hover:text-white">今年</button>
                     <button id="period-month" class="period-btn flex-1 md:flex-none px-3 py-1.5 rounded font-bold transition-colors text-gray-400 hover:text-white">今月</button>
-                    <button id="period-30d" class="period-btn flex-1 md:flex-none px-3 py-1.5 rounded font-bold transition-colors text-gray-400 hover:text-white">過去30日</button>
+                    <button id="period-7d" class="period-btn flex-1 md:flex-none px-3 py-1.5 rounded font-bold transition-colors text-gray-400 hover:text-white">過去7日</button>
                 </div>
 
                 <div class="flex items-center space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-700 w-full md:w-auto">
@@ -59,35 +61,56 @@
                 </div>
             </div>
 
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4 border-t border-gray-700 pt-3">
-                <div class="flex items-center gap-2 w-full md:w-auto">
-                    <span class="text-gray-400 font-bold">分析対象の銘柄:</span>
-                    <select id="coin-filter-select" class="bg-gray-900 text-white font-bold px-3 py-1.5 rounded border border-gray-700 focus:outline-none focus:border-blue-500 cursor-pointer shadow-inner">
-                        <option value="all">すべて</option>
-                    </select>
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-t border-gray-700 pt-3">
+                <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-400 font-bold">分析対象の銘柄:</span>
+                        <select id="coin-filter-select" class="bg-gray-900 text-white font-bold px-3 py-1.5 rounded border border-gray-700 focus:outline-none focus:border-blue-500 cursor-pointer shadow-inner">
+                            <option value="all">すべて</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-400 font-bold">Sample Size:</span>
+                        <select id="trade-count-select" class="bg-gray-900 text-white font-bold px-3 py-1.5 rounded border border-gray-700 focus:outline-none focus:border-blue-500 cursor-pointer shadow-inner">
+                            <option value="all">All Trades</option>
+                            <option value="100">Last 100</option>
+                            <option value="200">Last 200</option>
+                            <option value="500">Last 500</option>
+                        </select>
+                    </div>
                 </div>
 
-                <div class="flex items-center gap-3 text-gray-400 w-full md:w-auto justify-end">
-                    <span class="font-bold text-[11px] md:text-xs text-blue-300" id="mode-text" title="クリックで実質損益(Net)と表面値幅(Gross)を切り替えます">表示モード: Net PnL (コスト込)</span>
-                    <div class="relative inline-block w-10 align-middle select-none transition duration-200">
-                        <input type="checkbox" id="displayToggle" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 top-0 bottom-0 m-auto"/>
-                        <label for="displayToggle" class="toggle-label block overflow-hidden h-5 rounded-full bg-blue-600 cursor-pointer"></label>
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full md:w-auto justify-end">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-[11px] md:text-xs text-blue-300" id="mode-text" title="クリックで実質損益(Net)と表面値幅(Gross)を切り替えます">表示モード: Net PnL (コスト込)</span>
+                        <div class="relative inline-block w-10 align-middle select-none transition duration-200">
+                            <input type="checkbox" id="displayToggle" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 top-0 bottom-0 m-auto"/>
+                            <label for="displayToggle" class="toggle-label block overflow-hidden h-5 rounded-full bg-blue-600 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-gray-700 pt-2 sm:pt-0 sm:pl-4 w-full sm:w-auto">
+                        <span class="font-bold text-[11px] md:text-xs text-purple-400" title="SNS共有用に重要な指標を隠します">🔒 Privacy Mode</span>
+                        <div class="relative inline-block w-10 align-middle select-none transition duration-200">
+                            <input type="checkbox" id="privacyToggle" class="privacy-checkbox absolute block w-5 h-5 rounded-full bg-gray-300 border-4 border-gray-500 appearance-none cursor-pointer z-10 top-0 bottom-0 m-auto"/>
+                            <label for="privacyToggle" class="privacy-label block overflow-hidden h-5 rounded-full bg-gray-500 cursor-pointer transition-colors duration-200"></label>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="border-2 border-dashed border-gray-500 bg-gray-800/80 rounded-xl p-8 md:p-10 text-center transition-all duration-200 cursor-pointer hover:bg-gray-700 hover:border-blue-400 shadow-lg mt-2 relative overflow-hidden" id="dropZone">
+        <div class="border-2 border-dashed border-gray-500 bg-gray-800/80 rounded-xl p-8 md:p-10 text-center transition-all duration-300 cursor-pointer hover:bg-gray-700 hover:border-blue-400 shadow-lg mt-2 relative overflow-hidden" id="dropZone">
             <div class="absolute inset-0 z-10" id="dropZoneClickArea"></div>
             <p class="text-base md:text-lg text-gray-300 font-bold relative z-0" id="dropText">
                 📁 Cryptoの取引履歴CSVをドロップ / タップして選択
-                <br><span class="text-xs text-blue-400 font-normal mt-2 block">※複数ファイル(取引履歴+資金調達履歴)の同時結合対応</span>
+                <br><span id="dropSubText" class="text-xs text-blue-400 font-normal mt-2 block">※複数ファイル(取引履歴+資金調達履歴)の同時結合対応</span>
             </p>
             <input type="file" id="fileInput" class="hidden" accept=".csv" multiple>
         </div>
         
         <p class="text-[11px] text-gray-500 text-center max-w-lg mx-auto leading-relaxed px-2">
-            Hyperliquidに最適化されています。その他の取引所については、一般的なデリバティブ（先物）CSVの自動解析を試みます。（※一部非対応のフォーマットあり）　
+            Hyperliquidに最適化されています。その他の取引所については、一般的なデリバティブ（先物）CSVの自動解析を試みます。（※一部非対応のフォーマットあり） 
         </p>
 
         <div id="dashboard" class="hidden space-y-6">
@@ -337,7 +360,7 @@
                 </div>
             </div>
 
-<div class="border-t border-gray-800 pt-6 mt-8">
+            <div class="border-t border-gray-800 pt-6 mt-8">
                 <div class="bg-gray-900 p-4 rounded border border-gray-700 text-center">
                     <p class="text-gray-300 font-bold text-xs mb-2">⚠️ 免責事項</p>
                     <p class="text-[10px] text-gray-500 leading-relaxed max-w-3xl mx-auto">
@@ -346,16 +369,10 @@
                         本ツールを利用したことによるいかなる損害についても責任を負いません。すべて自己責任でのご利用をお願いいたします。
                     </p>
                 </div>
-            </div> 
-
-           <div class="flex justify-center pb-4 pt-4">
-                <button id="shareBtn" class="bg-black hover:bg-gray-800 text-white font-bold py-2 px-6 rounded-full border border-gray-600 transition-colors text-sm whitespace-nowrap shadow-lg flex items-center gap-2">
-                    𝕏 結果をシェアする
-                </button>
             </div>
         </div>
 
-<footer class="text-center pt-6 border-t border-gray-800 pb-4">
+        <footer class="text-center pt-6 border-t border-gray-800 pb-4 mt-8">
             <p class="mb-3">
                 <a href="https://forms.gle/pi8cNuu31H6EsHV28" target="_blank" class="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 underline underline-offset-4 font-bold transition-colors text-xs break-all px-4">
                     📮 非対応フォーマットの報告箱
@@ -369,15 +386,15 @@
             </p>
 
             <div class="mt-8 px-4 max-w-5xl mx-auto">
-<p class="text-[10px] text-gray-500 text-center max-w-2xl mx-auto leading-relaxed">
-    💡 Hyperliquidをご利用の際は、招待コード <a href="https://app.hyperliquid.xyz/join/PNLANALYZER" target="_blank" class="text-blue-400 underline hover:text-blue-300 transition-colors font-mono">PNLANALYZER</a> をご検討ください。最初の$25M取引まで手数料が4%割引されます。<br>（このコードの利用により、開発者への支援として紹介報酬が発生します）
-</p>
+                <p class="text-[10px] text-gray-500 text-center max-w-2xl mx-auto leading-relaxed">
+                    💡 Hyperliquidをご利用の際は、招待コード <a href="https://app.hyperliquid.xyz/join/PNLANALYZER" target="_blank" class="text-blue-400 underline hover:text-blue-300 transition-colors font-mono">PNLANALYZER</a> をご検討ください。最初の$25M取引まで手数料が4%割引されます。<br>（このコードの利用により、開発者への支援として紹介報酬が発生します）
+                </p>
                 <div class="mt-3 text-center md:text-right">
-    <a href="https://github.com/cryptopnlanalyzer-spec/crypto-pnl-analyzer" target="_blank" class="inline-flex items-center gap-1.5 text-[10px] text-gray-400 hover:text-white font-mono opacity-50 hover:opacity-100 transition-all">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
-        View Source on GitHub
-    </a>
-</div>
+                    <a href="https://github.com/cryptopnlanalyzer-spec/crypto-pnl-analyzer" target="_blank" class="inline-flex items-center gap-1.5 text-[10px] text-gray-400 hover:text-white font-mono opacity-50 hover:opacity-100 transition-all">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+                        View Source on GitHub
+                    </a>
+                </div>
             </div>
         </footer>
 
@@ -413,11 +430,14 @@
         const dropZoneClickArea = document.getElementById('dropZoneClickArea');
         const fileInput = document.getElementById('fileInput');
         const dropText = document.getElementById('dropText');
+        const dropSubText = document.getElementById('dropSubText');
         const dashboard = document.getElementById('dashboard');
         const displayToggle = document.getElementById('displayToggle');
+        const privacyToggle = document.getElementById('privacyToggle');
         const userBalanceInput = document.getElementById('user-balance');
         const currencySymbolInput = document.getElementById('currency-symbol-input');
         const coinSelect = document.getElementById('coin-filter-select');
+        const tradeCountSelect = document.getElementById('trade-count-select');
         const modeText = document.getElementById('mode-text');
         const pnlLabel = document.getElementById('pnl-label');
         const heroPanel = document.getElementById('hero-panel');
@@ -435,6 +455,9 @@
         let currentAggregatedData = null;
 
         const fastChartOptions = { animation: false, responsive: true, maintainAspectRatio: false };
+
+        // Privacy Mode用のマスクHTML
+        const getMask = () => '<span class="text-purple-400 font-mono tracking-widest font-black">***</span>';
 
         const tabs = ['main', 'calendar', 'risk', 'assets'];
         tabs.forEach(tab => {
@@ -455,7 +478,7 @@
             });
         });
 
-        ['all', 'year', 'month', '30d'].forEach(p => {
+        ['all', 'year', 'month', '7d'].forEach(p => {
             document.getElementById(`period-${p}`).addEventListener('click', () => {
                 currentFilters.period = p;
                 updateBtnGroup('period', `period-${p}`);
@@ -476,6 +499,10 @@
             applyFiltersAndRender();
         });
 
+        tradeCountSelect.addEventListener('change', () => {
+            applyFiltersAndRender();
+        });
+
         displayToggle.addEventListener('change', () => {
             const isGrossMode = displayToggle.checked;
             if (isGrossMode) {
@@ -492,6 +519,14 @@
                 heroPanel.className = "bg-gray-800 p-6 rounded-xl shadow-lg border border-blue-500/30 text-center space-y-1 relative transition-colors duration-300";
             }
             applyFiltersAndRender();
+        });
+
+        // Privacy Mode Toggle
+        privacyToggle.addEventListener('change', () => {
+            if (currentAggregatedData) {
+                renderMainTab(currentAggregatedData);
+                renderRiskAndAssetsTab(currentAggregatedData);
+            }
         });
 
         function updateBtnGroup(groupClass, activeId) {
@@ -554,8 +589,14 @@
         userBalanceInput.addEventListener('input', () => {
             const bal = parseFloat(userBalanceInput.value) || 0;
             const amtEl = document.getElementById('kelly-fiat-amount');
-            if (bal > 0 && currentKellyHalf > 0) amtEl.innerText = formatAbsoluteCurrency(bal * currentKellyHalf, globalCurrency);
-            else amtEl.innerText = "-";
+            const isPrivacy = privacyToggle.checked;
+            
+            if (isPrivacy) {
+                amtEl.innerHTML = getMask();
+            } else {
+                if (bal > 0 && currentKellyHalf > 0) amtEl.innerText = formatAbsoluteCurrency(bal * currentKellyHalf, globalCurrency);
+                else amtEl.innerText = "-";
+            }
         });
 
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => { dropZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }); });
@@ -645,6 +686,14 @@
             return new Date(cleanStr);
         }
 
+        // ドロップゾーンをスマートに折り畳む関数
+        function shrinkDropZone() {
+            dropZone.className = "border-2 border-dashed border-gray-600 bg-gray-800/50 rounded-xl p-3 text-center transition-all duration-300 cursor-pointer hover:bg-gray-700 hover:border-blue-400 shadow mt-2 relative overflow-hidden";
+            dropText.className = "text-xs text-gray-400 font-bold relative z-0";
+            dropText.innerHTML = "📁 追加のCSVをドロップ / タップしてデータを結合";
+            if(dropSubText) dropSubText.style.display = 'none';
+        }
+
         function prepareFiles(fileList) {
             const files = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.csv'));
             if (files.length === 0) { dropText.innerHTML = "❌ CSVファイルが見つかりません"; return; }
@@ -679,15 +728,11 @@
 
                 let positions = {};
                 let lastCoin = "UNKNOWN";
-
-                // 💡ここから追加：FRのLong/Short判定ロジック
-                // 直近の取引履歴から、各コインの現在のポジション方向を追跡する
                 let currentDirection = {}; 
 
                 globalAllRows.forEach(r => {
                     if (!r.isFr && r.coin && r.coin !== "UNKNOWN" && r.coin !== "FUNDING_FEE") {
                         lastCoin = r.coin;
-                        // 取引があった場合、そのコインの方向を記録
                         if (r.isCl === false || r.isManualOpen) {
                             currentDirection[r.coin] = r.isPosLong ? 'long' : 'short';
                         }
@@ -697,11 +742,9 @@
                         if (r.coin === "FUNDING_FEE" || /^(USDT|USDC|USD|JPY|EUR)$/i.test(r.coin) || r.coin === "UNKNOWN") {
                             if (lastCoin !== "UNKNOWN") r.coin = lastCoin;
                         }
-                        // FR行に、推測されたポジション方向を付与（不明な場合は両方に表示されるようnull）
                         r.frDirection = currentDirection[r.coin] || null;
                     }
 
-                    // 既存のManualPnLロジック
                     if (r.needsManualPnL) {
                         if (!positions[r.coin]) positions[r.coin] = { longQty: 0, longCostTotal: 0, shortQty: 0, shortCostTotal: 0 };
                         let pos = positions[r.coin];
@@ -738,8 +781,8 @@
                     userBalanceInput.value = latestBalance;
                 }
 
-                dropText.innerHTML = `✅ 解析完了 (${files.length} ファイル)`;
-                dropText.className = "text-sm md:text-lg text-green-400 font-bold";
+                // 読み込み完了後にドロップゾーンを折り畳む
+                shrinkDropZone();
                 
                 populateCoinSelect();
                 applyFiltersAndRender();
@@ -907,38 +950,81 @@
             const now = new Date();
             const nowYear = now.getFullYear();
             const nowMonth = now.getMonth();
-            const thirtyDaysAgoMs = now.getTime() - (30 * 24 * 60 * 60 * 1000);
 
             const cleanRows = filterDuplicates(globalAllRows);
+            
+            // Step 1: 期間や通貨のフィルターを適用
             const filteredRows = cleanRows.filter(r => {
                 let isPosLong = r.isPosLong; 
-                // 💡ここから修正：FRの場合もLong/Shortフィルターを適用する
                 if (currentFilters.direction === 'long') {
-                    if (r.isFr && r.frDirection === 'short') return false; // FRがショート由来なら弾く
+                    if (r.isFr && r.frDirection === 'short') return false; 
                     if (!r.isFr && !isPosLong) return false;
                 }
                 if (currentFilters.direction === 'short') {
-                    if (r.isFr && r.frDirection === 'long') return false; // FRがロング由来なら弾く
+                    if (r.isFr && r.frDirection === 'long') return false; 
                     if (!r.isFr && isPosLong) return false;
                 }
                 if (currentFilters.coin !== 'all' && r.coin !== currentFilters.coin) return false;
+                
                 if (currentFilters.period !== 'all') {
                     const rDate = new Date(r.t);
                     if (currentFilters.period === 'year' && rDate.getFullYear() !== nowYear) return false;
                     if (currentFilters.period === 'month' && (rDate.getFullYear() !== nowYear || rDate.getMonth() !== nowMonth)) return false;
-                    if (currentFilters.period === '30d' && rDate.getTime() < thirtyDaysAgoMs) return false;
+                    if (currentFilters.period === '7d' && r.t < (now.getTime() - 7 * 24 * 60 * 60 * 1000)) return false;
                 }
                 return true;
             });
 
-            const aggregatedData = aggregateData(filteredRows, displayToggle.checked);
+            // Step 2: 「直近Nトレード」の切り出しロジックを修正
+            let finalRows = filteredRows;
+            if (tradeCountSelect && tradeCountSelect.value !== 'all') {
+                const n = parseInt(tradeCountSelect.value);
+                
+                // 本当の「決済トレード」だけを抽出
+                const closedTrades = filteredRows.filter(r => r.isCl && !r.isFr);
+                
+                if (closedTrades.length > n) {
+                    // 直近N回目のトレードが行われた時間を取得
+                    const targetTrade = closedTrades[closedTrades.length - n];
+                    const cutoffTime = targetTrade.t;
+                    
+                    // その時間以降のすべての行（Funding FeeやOpen行を含む）を残す
+                    finalRows = filteredRows.filter(r => r.t >= cutoffTime);
+                }
+            }
+
+            const aggregatedData = aggregateData(finalRows, displayToggle.checked);
             currentAggregatedData = aggregatedData;
 
             dashboard.classList.remove('hidden');
             
             renderMainTab(aggregatedData);
             setTimeout(() => renderCalendarTab(aggregatedData), 10);
-            setTimeout(() => renderRiskAndAssetsTab(aggregatedData), 20);
+            setTimeout(() => {
+                renderRiskAndAssetsTab(aggregatedData);
+                
+                if (privacyToggle.checked) {
+                    const maskTargets = [
+                        'val-avg-win', 'val-avg-loss', 'val-rr', 'val-expectancy',
+                        'insight-max-win', 'insight-max-loss',
+                        'val-kelly-full', 'val-kelly-half', 'val-kelly-quarter', 'kelly-fiat-amount'
+                    ];
+                    maskTargets.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) delete el.dataset.original;
+                    });
+                    const rows = document.querySelectorAll('#coin-ranking-body tr');
+                    rows.forEach(row => {
+                        const tds = row.querySelectorAll('td');
+                        if (tds.length >= 6) {
+                            delete tds[3].dataset.original;
+                            delete tds[4].dataset.original;
+                            delete tds[5].dataset.original;
+                        }
+                    });
+                    applyPrivacyMode();
+                }
+            }, 20);
         }
 
         function aggregateData(rows, isGrossMode) {
@@ -1073,6 +1159,9 @@
         }
 
         function renderMainTab(targetData) {
+            const isPrivacy = privacyToggle.checked;
+            const mask = getMask();
+
             const winRateNum = targetData.trades > 0 ? (targetData.winTrades / targetData.trades) : 0;
             const avgW = targetData.winTrades > 0 ? (targetData.grossProfit / targetData.winTrades) : 0;
             const avgL = targetData.lossCount > 0 ? Math.abs(targetData.grossLoss / targetData.lossCount) : 0;
@@ -1086,11 +1175,14 @@
             document.getElementById('val-winrate').innerText = `${(winRateNum * 100).toFixed(2)} %`;
             document.getElementById('val-pf').innerText = currentPf === Infinity ? "∞" : currentPf.toFixed(2);
             document.getElementById('val-pf').className = `font-bold text-sm ${currentPf >= 1.0 ? 'text-green-400' : 'text-red-400'}`;
-            document.getElementById('val-expectancy').innerText = formatCurrency(expectancy, globalCurrency);
-            document.getElementById('val-expectancy').className = `font-bold text-sm ${expectancy >= 0 ? 'text-green-400' : 'text-red-400'}`;
-            document.getElementById('val-avg-win').innerText = formatCurrency(avgW, globalCurrency);
-            document.getElementById('val-avg-loss').innerText = formatCurrency(-avgL, globalCurrency);
-            document.getElementById('val-rr').innerText = rrRatio > 0 ? rrRatio.toFixed(2) : "-";
+            
+            const expEl = document.getElementById('val-expectancy');
+            expEl.innerHTML = isPrivacy ? mask : formatCurrency(expectancy, globalCurrency);
+            expEl.className = `font-bold text-sm ${expectancy >= 0 ? 'text-green-400' : 'text-red-400'}`;
+            
+            document.getElementById('val-avg-win').innerHTML = isPrivacy ? mask : formatCurrency(avgW, globalCurrency);
+            document.getElementById('val-avg-loss').innerHTML = isPrivacy ? mask : formatCurrency(-avgL, globalCurrency);
+            document.getElementById('val-rr').innerHTML = isPrivacy ? mask : (rrRatio > 0 ? rrRatio.toFixed(2) : "-");
             document.getElementById('val-volume').innerText = formatCompactCurrency(targetData.totalVolume, globalCurrency, false);
             
             const displayFee = -Math.abs(targetData.totalFee);
@@ -1101,12 +1193,18 @@
             const iWinEl = document.getElementById('insight-max-win');
             const iLossEl = document.getElementById('insight-max-loss');
             const daysStr = ['日', '月', '火', '水', '木', '金', '土'];
-            if (targetData.maxWinTrade && targetData.maxWinTrade.pnl > 0) {
-                iWinEl.innerHTML = `<li>銘柄: ${targetData.maxWinTrade.coin} (${formatCurrency(targetData.maxWinTrade.pnl, globalCurrency)})</li><li>タイミング: ${daysStr[targetData.maxWinTrade.day]}曜日 ${targetData.maxWinTrade.hour}時台</li>`;
-            } else { iWinEl.innerHTML = "<li class='text-gray-500'>データなし</li>"; }
-            if (targetData.maxLossTrade && targetData.maxLossTrade.pnl < 0) {
-                iLossEl.innerHTML = `<li>銘柄: ${targetData.maxLossTrade.coin} (${formatCurrency(targetData.maxLossTrade.pnl, globalCurrency)})</li><li>タイミング: ${daysStr[targetData.maxLossTrade.day]}曜日 ${targetData.maxLossTrade.hour}時台</li>`;
-            } else { iLossEl.innerHTML = "<li class='text-gray-500'>データなし</li>"; }
+            
+            if (isPrivacy) {
+                iWinEl.innerHTML = mask;
+                iLossEl.innerHTML = mask;
+            } else {
+                if (targetData.maxWinTrade && targetData.maxWinTrade.pnl > 0) {
+                    iWinEl.innerHTML = `<li>銘柄: ${targetData.maxWinTrade.coin} (${formatCurrency(targetData.maxWinTrade.pnl, globalCurrency)})</li><li>タイミング: ${daysStr[targetData.maxWinTrade.day]}曜日 ${targetData.maxWinTrade.hour}時台</li>`;
+                } else { iWinEl.innerHTML = "<li class='text-gray-500'>データなし</li>"; }
+                if (targetData.maxLossTrade && targetData.maxLossTrade.pnl < 0) {
+                    iLossEl.innerHTML = `<li>銘柄: ${targetData.maxLossTrade.coin} (${formatCurrency(targetData.maxLossTrade.pnl, globalCurrency)})</li><li>タイミング: ${daysStr[targetData.maxLossTrade.day]}曜日 ${targetData.maxLossTrade.hour}時台</li>`;
+                } else { iLossEl.innerHTML = "<li class='text-gray-500'>データなし</li>"; }
+            }
 
             let lsHtml = [];
             ['long','short'].forEach(k => {
@@ -1258,6 +1356,9 @@
         }
 
         function renderRiskAndAssetsTab(targetData) {
+            const isPrivacy = privacyToggle.checked;
+            const mask = getMask();
+
             const winRateNum = targetData.trades > 0 ? (targetData.winTrades / targetData.trades) : 0;
             const avgW = targetData.winTrades > 0 ? (targetData.grossProfit / targetData.winTrades) : 0;
             const avgL = targetData.lossCount > 0 ? Math.abs(targetData.grossLoss / targetData.lossCount) : 0;
@@ -1269,26 +1370,32 @@
             const kHalfEl = document.getElementById('val-kelly-half');
             const kQuarterEl = document.getElementById('val-kelly-quarter');
 
-            if (targetData.trades > 0 && targetData.lossCount === 0) {
-                const msg = `<span class="text-gray-400 text-xs">損失データなし(計算不可)</span>`;
-                kFullEl.innerHTML = msg; kHalfEl.innerHTML = msg; kQuarterEl.innerHTML = msg;
-                currentKellyHalf = 0;
-            } else if (winRateNum > 0 && rrRatio > 0) { 
-                kellyFull = winRateNum - (lossRateNum / rrRatio); 
-                if (kellyFull <= 0) {
-                    const msg = `<span class="text-red-400 text-xs">期待値マイナス</span>`;
+            if (isPrivacy) {
+                kFullEl.innerHTML = mask;
+                kHalfEl.innerHTML = mask;
+                kQuarterEl.innerHTML = mask;
+            } else {
+                if (targetData.trades > 0 && targetData.lossCount === 0) {
+                    const msg = `<span class="text-gray-400 text-xs">損失データなし(計算不可)</span>`;
                     kFullEl.innerHTML = msg; kHalfEl.innerHTML = msg; kQuarterEl.innerHTML = msg;
                     currentKellyHalf = 0;
+                } else if (winRateNum > 0 && rrRatio > 0) { 
+                    kellyFull = winRateNum - (lossRateNum / rrRatio); 
+                    if (kellyFull <= 0) {
+                        const msg = `<span class="text-red-400 text-xs">期待値マイナス</span>`;
+                        kFullEl.innerHTML = msg; kHalfEl.innerHTML = msg; kQuarterEl.innerHTML = msg;
+                        currentKellyHalf = 0;
+                    } else {
+                        currentKellyHalf = kellyFull * 0.5;
+                        kFullEl.innerHTML = `${(kellyFull * 100).toFixed(2)} %`;
+                        kHalfEl.innerHTML = `${(kellyFull * 50).toFixed(2)} %`;
+                        kQuarterEl.innerHTML = `${(kellyFull * 25).toFixed(2)} %`;
+                    }
                 } else {
-                    currentKellyHalf = kellyFull * 0.5;
-                    kFullEl.innerHTML = `${(kellyFull * 100).toFixed(2)} %`;
-                    kHalfEl.innerHTML = `${(kellyFull * 50).toFixed(2)} %`;
-                    kQuarterEl.innerHTML = `${(kellyFull * 25).toFixed(2)} %`;
+                    const msg = `<span class="text-gray-500 text-xs">-</span>`;
+                    kFullEl.innerHTML = msg; kHalfEl.innerHTML = msg; kQuarterEl.innerHTML = msg;
+                    currentKellyHalf = 0;
                 }
-            } else {
-                const msg = `<span class="text-gray-500 text-xs">-</span>`;
-                kFullEl.innerHTML = msg; kHalfEl.innerHTML = msg; kQuarterEl.innerHTML = msg;
-                currentKellyHalf = 0;
             }
 
             userBalanceInput.dispatchEvent(new Event('input')); 
@@ -1375,8 +1482,11 @@
                 const wrCoin = stat.count > 0 ? ((stat.winCount / stat.count) * 100).toFixed(1) : 0;
                 const avgCoin = stat.count > 0 ? (stat.pnl / stat.count) : 0;
                 const pfCoin = stat.grossLoss === 0 ? (stat.grossProfit > 0 ? "∞" : "0.00") : Math.abs(stat.grossProfit / stat.grossLoss).toFixed(2);
-                const mWin = (stat.winCount > 0 && stat.maxWin !== -Infinity) ? formatCompactCurrency(stat.maxWin, globalCurrency) : "-";
-                const mLoss = (stat.lossCount > 0 && stat.maxLoss !== Infinity) ? formatCompactCurrency(stat.maxLoss, globalCurrency) : "-";
+                
+                const avgCoinText = isPrivacy ? mask : formatCompactCurrency(avgCoin, globalCurrency);
+                const mWinText = isPrivacy ? mask : ((stat.winCount > 0 && stat.maxWin !== -Infinity) ? formatCompactCurrency(stat.maxWin, globalCurrency) : "-");
+                const mLossText = isPrivacy ? mask : ((stat.lossCount > 0 && stat.maxLoss !== Infinity) ? formatCompactCurrency(stat.maxLoss, globalCurrency) : "-");
+                
                 const lWrText = stat.lCount > 0 ? ((stat.lWin / stat.lCount) * 100).toFixed(0) + "%" : "-";
                 const sWrText = stat.sCount > 0 ? ((stat.sWin / stat.sCount) * 100).toFixed(0) + "%" : "-";
 
@@ -1384,9 +1494,9 @@
                     <td class="py-2 px-2 sticky left-0 bg-gray-800/90 group-hover:bg-gray-700/90 font-mono font-bold text-blue-400 group-hover:text-blue-300 underline decoration-blue-500/50 underline-offset-2" title="クリックでこの銘柄に絞り込み">${c}</td>
                     <td class="text-right py-2 px-2 text-gray-400">${stat.count}</td>
                     <td class="text-right py-2 px-2 text-gray-300">${wrCoin}%</td>
-                    <td class="text-right py-2 px-2 font-mono text-xs ${avgCoin>=0?'text-green-400':'text-red-400'}">${formatCompactCurrency(avgCoin, globalCurrency)}</td>
-                    <td class="text-right py-2 px-2 font-mono text-xs text-green-400">${mWin}</td>
-                    <td class="text-right py-2 px-2 font-mono text-xs text-red-400">${mLoss}</td>
+                    <td class="text-right py-2 px-2 font-mono text-xs ${avgCoin>=0?'text-green-400':'text-red-400'}">${avgCoinText}</td>
+                    <td class="text-right py-2 px-2 font-mono text-xs text-green-400">${mWinText}</td>
+                    <td class="text-right py-2 px-2 font-mono text-xs text-red-400">${mLossText}</td>
                     <td class="text-right py-2 px-2 font-mono text-xs text-gray-300">${pfCoin}</td>
                     <td class="text-right py-2 px-2 border-l border-gray-700/50 text-blue-300 text-[11px]">${stat.lCount}</td>
                     <td class="text-right py-2 px-2 text-blue-300 text-[11px]">${lWrText}</td>
@@ -1399,11 +1509,6 @@
             });
             rnkBody.innerHTML = rnkHtml.join('');
         }
-
-        document.getElementById('shareBtn').addEventListener('click', () => {
-            const text = `📊 トレード履歴の自動解析が完了しました\n・純損益: ${globalStats.pnl}\n・PF: ${globalStats.pf}\n・勝率: ${globalStats.winRate}\n・期待値: ${globalStats.expectancy}\n\nサーバー送信なし、完全ローカルの安心設計。\n#Crypto #PnLAnalyzer\n👇 無料で自分のパフォーマンスを分析する\nhttps://crypto-pnl-analyzer.vercel.app/ja.html`;
-            window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
-        });
-</script>
-    </body>
+    </script>
+</body>
 </html>
