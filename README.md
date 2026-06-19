@@ -2,7 +2,6 @@
 
 ![Crypto PnL Analyzer](thumbnail.png)
 
-
 > **⚠️ IMPORTANT: Dedicated to Crypto Derivatives / Futures Only (Spot trading NOT supported)**
 > **⚠️ 重要：仮想通貨デリバティブ・先物取引専用ツールです（現物取引のCSVには対応していません）**
 >
@@ -13,6 +12,22 @@
 [![100% Local](https://img.shields.io/badge/Privacy-100%25%20Local-success.svg)](#)
 
 👉 **[Live Demo (English)](https://crypto-pnl-analyzer.vercel.app/)** | 👉 **[Live Demo (日本語)](https://crypto-pnl-analyzer.vercel.app/ja.html)**
+
+---
+
+## 📢 Recent Updates (最新のアップデート情報)
+
+**[EN] Version Update:**
+* **Added "Sample Size" Filter (Recent N-Trades):** You can now filter analytics by "Last 100", "200", or "500" executed trades, independent of the time period. This isolates your pure edge in recent market conditions without noise.
+* **Added "Privacy Mode":** A new toggle to instantly mask sensitive data (e.g., Avg PnL, RR, Max Loss, and Insights) with `***`, allowing you to safely screenshot and share your performance on social media without revealing your core strategy.
+* **Period Filter Updated:** Replaced "Last 30 Days" with "Last 7 Days" for a more focused, short-term performance review.
+* **UI Streamlined:** Removed the built-in X (Twitter) sharing button for a cleaner, more professional interface (please use your OS screenshot tools combined with Privacy Mode).
+
+**[JA] バージョンアップデート:**
+* **「Sample Size（直近Nトレード）」フィルター追加:** 期間とは独立して、「直近100回」「200回」「500回」の決済トレードのみを抽出して分析できるようになりました。ノイズを排除し、現在の相場に対する純粋なエッジ（実力）を測定できます。
+* **「Privacy Mode（プライバシーモード）」搭載:** ワンタップで平均損益、RR、最大損失、自動インサイトなどの機密データを「***」で隠す機能を追加しました。手法のヒントを漏らすことなく、安全にスクショを撮ってSNS等で共有できます。
+* **期間フィルター変更:** 「過去30日」を廃止し、より短期的な調子を振り返りやすい「過去7日（Last 7 Days）」に変更しました。
+* **UIの最適化:** X（Twitter）へのテキスト共有ボタンを削除し、よりストイックで洗練されたインターフェースに整理しました（共有時はPrivacy ModeをONにしてOSのスクショ機能をご利用ください）。
 
 ---
 
